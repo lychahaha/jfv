@@ -95,8 +95,9 @@ class JFVWindow(QMainWindow):
         img = self.img_system.getTinyImg(path)
         grid.imgLabel.setPixmap(img)
 
-    def slotImgLoaded(self, grid, path):
-        pass
+    def slotImgLoaded(self, path):
+        img = self.img_system.getImg(path)
+        self.viewWidget.
 
     def slotAboutAction(self):
         msgbox = QMessageBox()
