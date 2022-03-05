@@ -11,7 +11,7 @@ from gui.view_widget import ViewWidget,GridWidget
 from gui.filter_widget import FilterWidget
 
 class JFVWindow(QMainWindow):
-    tinyImgReady = pyqtSignal(int,int,str)
+    tinyImgReady = pyqtSignal(str,int,int)
     imgReady = pyqtSignal(str)
 
     def __init__(self, global_args):
@@ -76,7 +76,7 @@ class JFVWindow(QMainWindow):
             grid.imgLabel.setPixmap(img)
         else:
             def fx():
-                self.tinyImgReady.emit(?, ?, path)
+                self.tinyImgReady.emit(path, self.viewWidget.gridLayout.indexOf(grid), self.viewWidget.cur_cnt)
             self.img_system.getTinyImg_async(path, fx)
 
     def slotFilterImgs(self):
@@ -91,13 +91,36 @@ class JFVWindow(QMainWindow):
         else:
             self.viewWidget.showDir(pathStr)
 
-    def slotTinyImgLoaded(self, grid, path):
+    def slotTinyImgLoaded(self, path, ix, cnt):
+        if cnt != self.viewWidget.cur_cnt:
+            return
+        grid = self.viewWidget.gridLayout.itemAt(ix)
         img = self.img_system.getTinyImg(path)
         grid.imgLabel.setPixmap(img)
 
     def slotImgLoaded(self, path):
+        if path != self.viewWidget.imgWidget.cur_path:
+            return
+        
         img = self.img_system.getImg(path)
-        self.viewWidget.
+        self.viewWidget.imgWidget.imgLabel.setPixmap(img)
+
+    def slotPressGrid(self, grid):
+        self.viewWidget.changeFocus(grid)
+
+    def slotDoubleClickGrid(self, grid):
+        if grid.filetype == 'file':
+            msgbox = QMessageBox()
+            msgbox.setText('JFV只能打开图片')
+            msgbox.exec_()
+        elif grid.filetype == 'dir':
+            self.viewWidget.showDir(grid.path)
+            self.filterWidget.pathLineEdit.setText(grid.path)
+        elif grid.filetype == 'img':
+            self.viewWidget.showImg(grid)
+        else:
+            assert False, f'not expected type:{grid.filetype}'
+
 
     def slotAboutAction(self):
         msgbox = QMessageBox()

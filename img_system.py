@@ -1,4 +1,5 @@
 import os
+import io
 import collections
 import threading
 import multiprocessing
@@ -105,8 +106,7 @@ class TinyImgReadThread(threading.Thread):
                     for img_path in img_paths:
                         img_b = open(path, 'rb').read()
                         img = Image.open(img_b)
-                        tinyimg = self.make_tinyimg(img)
-                        tinyimg_b = tinyimg.save(??)
+                        tinyimg,tinyimg_b = self.make_tinyimg(img)
                         self.pool.add(img_path.tinyimg_b)
                         imgs[img_path] = tinyimg_b
                     pickle.dumps(imgs, open(pkl_dirpath,'wb'))
@@ -118,7 +118,14 @@ class TinyImgReadThread(threading.Thread):
         path = path.replace('\\','_').replace(':','')
         return os.path.join(self.tinyimg_filedir, path+path_md5[:10]+'.pkl')
 
-    def 
+    def make_tinyimg(self, img):
+        tinyimg = img.resize((1,1))
+        s = io.BytesIO()
+        tinyimg.save(s,'jpeg')
+        s.seek(0)
+        tinyimg_b = s.read()
+        return tinyimg,tinyimg_b
+
 
 class CachedPool(object):
     def __init__(self, pool_size):

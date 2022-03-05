@@ -15,11 +15,14 @@ class ViewWidget(QStackedWidget):
         self.cur_pos = [0,0]
         self.cur_path = self.parent().global_args['img_default_filedir']
         self.cur_cnt = 0
-        self.show_mode = 'dir' # dir|filter
+        self.cur_grid = None
+        self.cur_mode = 'dir' # dir|filter|img
 
         self.dirWidget = QScrollArea()
-        self.gridLayout = QGridLayout(self.dirWidget)
-
+        self.contentWidget = QWidget()
+        self.gridLayout = QGridLayout(self.contentWidget)
+        self.dirWidget.setWidget(self.contentWidget)
+        
         self.imgWidget = ImgWidget(self.parent())
 
         self.addWidget(self.dirWidget)
@@ -27,10 +30,36 @@ class ViewWidget(QStackedWidget):
 
         self.showDir(self.cur_path)
 
+    def changeFocus(self, grid):
+        old_grid = self.cur_grid
+        if old_grid is grid:
+            return
+        if old_grid is not None:
+            old_grid.lose_focus()
+        grid.get_focus()
+        self.cur_grid = grid
+
+    def showImg(self, grid):
+        self.setCurrentWidget(self.imgWidget)
+
+        self.imgWidget.reset_img(grid.path)
+        self.changeFocus(grid)
+
+        self.cur_path = grid.path
+        self.cur_mode = 'img'
+
     def showImgs(self, paths):
-        self.show_mode = 'filter'
+        self.setCurrentWidget(self.dirWidget)
+        self.clearLayout()
+
+        for path in paths:
+            self._addGrid(path, os.path.split(path)[1])
+
+        self.cur_mode = 'filter'
+        self.cur_grid = None
 
     def showDir(self, path):
+        self.setCurrentWidget(self.dirWidget)
         self.clearLayout()
 
         names = ['..'] + os.listdir(path)
@@ -41,8 +70,9 @@ class ViewWidget(QStackedWidget):
         for name in file_names:
             self._addGrid(path,name)
 
-        self.show_mode = 'dir'
+        self.cur_mode = 'dir'
         self.cur_path = path
+        self.cur_grid = None
 
     def clearLayout(self):
         for i in range(self.gridLayout.count()):
@@ -101,6 +131,24 @@ class GridWidget(QWidget):
         else:
             assert False, f'not expected type:{self.filetype}'
 
+    def get_focus(self):
+        palette = QPalette()
+        palette.setColor(QPalette.WindowText, Qt.red)
+        self.nameLabel.setPalette(palette)
+
+    def lose_focus(self):
+        palette = QPalette()
+        palette.setColor(QPalette.WindowText, Qt.black)
+        self.nameLabel.setPalette(palette)
+
+    def mouseDoubleClickEvent(self, e):
+        self.mainWindow.slotDoubleClickGrid(self)
+
+    def mousePressEvent(self, e):
+        self.mainWindow.slotPressGrid(self)
+
+
+
 class ImgWidget(QWidget):
     def __init__(self, mainWindow, path=None):
         super().__init__()
@@ -109,12 +157,13 @@ class ImgWidget(QWidget):
         self.cur_path = path
 
         self.imgLabel = QLabel()
-        self.reset_img()
+        self.reset_img(self.cur_path)
 
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.imgLabel)
 
-    def reset_img(self):
+    def reset_img(self, path):
+        self.cur_path = path
         if self.cur_path is None:
             self.imgLabel.setText('')
         else:

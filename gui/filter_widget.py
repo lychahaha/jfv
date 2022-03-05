@@ -7,6 +7,7 @@ class FilterWidget(QDockWidget):
         super().__init__(title, parent)
 
         self.pathLineEdit = QLineEdit()
+        self.pathLineEdit.setText(self.parent().global_args['img_default_filedir'])
         self.tagLineEdit = QLineEdit()
         self.pathClearBtn = QPushButton('清除')
         self.tagClearBtn = QPushButton('清除')
