@@ -178,8 +178,10 @@ class TagSystem(object):
         return ret_paths
 
     def _filterImageByTagExp(self, paths, tagStr):
-        tagStr = tagStr + '#'
+        if tagStr == "":
+            return paths
 
+        tagStr = tagStr + '#'
         s1 = []
         s2 = []
         ibeg = 0

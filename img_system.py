@@ -5,12 +5,16 @@ import multiprocessing
 from hashlib import md5
 import pickle
 
+from PIL import Image
+
 class ImgSystem(object):
     def __init__(self, img_poolsize, tinyimg_poolsize, img_extnames, tinyimg_filedir):
         self.img_poolsize = img_poolsize
         self.tinyimg_poolsize = tinyimg_poolsize
         self.img_extnames = img_extnames
         self.tinyimg_filedir = tinyimg_filedir
+
+        os.makedirs(self.tinyimg_filedir, exist_ok=True)
 
         self.img_pool = CachedPool(self.img_poolsize)
         self.tinyimg_pool = CachedPool(self.tinyimg_poolsize)
@@ -100,8 +104,11 @@ class TinyImgReadThread(threading.Thread):
                     imgs = {}
                     for img_path in img_paths:
                         img_b = open(path, 'rb').read()
-                        self.pool.add(img_path.img_b)
-                        imgs[img_path] = img_b
+                        img = Image.open(img_b)
+                        tinyimg = self.make_tinyimg(img)
+                        tinyimg_b = tinyimg.save(??)
+                        self.pool.add(img_path.tinyimg_b)
+                        imgs[img_path] = tinyimg_b
                     pickle.dumps(imgs, open(pkl_dirpath,'wb'))
 
             callback()
@@ -111,6 +118,7 @@ class TinyImgReadThread(threading.Thread):
         path = path.replace('\\','_').replace(':','')
         return os.path.join(self.tinyimg_filedir, path+path_md5[:10]+'.pkl')
 
+    def 
 
 class CachedPool(object):
     def __init__(self, pool_size):

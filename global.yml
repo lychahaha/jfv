@@ -1,7 +1,11 @@
-IMG_POOLSIZE: 50
-TINYIMG_POOLSIZE: 500
+img_poolsize: 50
+tinyimg_poolsize: 500
 
-TAG_FILEPATH: "data\\tag.pkl"
-TINYIMG_FILEDIR: "data\\tinyimg"
-IMG_DEFAULT_FILEDIR: "D:\\照片"
-IMG_EXTNAMES: [".jpg",".jpeg",".png"]
+tag_filepath: "data\\tag.pkl"
+tinyimg_filedir: "data\\tinyimg"
+img_default_filedir: "D:\\照片"
+img_extnames: [".jpg",".jpeg",".png"]
+
+dir_icon_path: "resource\\dir_icon.jpg"
+file_icon_path: "resource\\file_icon.jpg"
+img_icon_path: "resource\\img_icon.jpg"
