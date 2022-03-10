@@ -7,13 +7,17 @@ from hashlib import md5
 import pickle
 
 from PIL import Image
+from PIL import ImageQt
+from PyQt5.QtGui import QPixmap
+from PyQt5.QtCore import QThread
 
 class ImgSystem(object):
-    def __init__(self, img_poolsize, tinyimg_poolsize, img_extnames, tinyimg_filedir):
+    def __init__(self, img_poolsize, tinyimg_poolsize, img_extnames, tinyimg_filedir, mainWindow):
         self.img_poolsize = img_poolsize
         self.tinyimg_poolsize = tinyimg_poolsize
         self.img_extnames = img_extnames
         self.tinyimg_filedir = tinyimg_filedir
+        self.mainWindow = mainWindow
 
         os.makedirs(self.tinyimg_filedir, exist_ok=True)
 
@@ -23,8 +27,8 @@ class ImgSystem(object):
         self.img_queue = multiprocessing.Queue()
         self.tinyimg_queue = multiprocessing.Queue()
 
-        self.p_img = ImgReadThread(self.img_queue, self.img_pool)
-        self.p_tinyimg = TinyImgReadThread(self.tinyimg_queue, self.tinyimg_pool, self.img_extnames, self.tinyimg_filedir)
+        self.p_img = ImgReadThread(self)
+        self.p_tinyimg = TinyImgReadThread(self)
 
         self.p_img.start()
         self.p_tinyimg.start()
@@ -39,32 +43,40 @@ class ImgSystem(object):
         return self.img_pool.has(path)
 
     def hasTinyImg(self, path):
+        # if not self.tinyimg_pool.has(path):
+            # data = pickle.load(open(r'D:\newcode\python\project\图片管理器\jfv\data\tinyimg\D_照片_尬_b1a6eb4e68.pkl','rb'))
+            # for path,img_b in data.items():
+                # self.tinyimg_pool.add(path,img_b)
+
         return self.tinyimg_pool.has(path)
 
-    def getImg_async(self, path, callback, quickly=False):
-        self.img_queue.put([path,callback])
+    def getImg_async(self, path, args, quickly=False):
+        self.img_queue.put([path,args])
 
-    def getTinyImg_async(self, path, callback, quickly=False):
-        self.tinyimg_queue.put([path,callback])
+    def getTinyImg_async(self, path, args, quickly=False):
+        self.tinyimg_queue.put([path,args])
 
     def close(self):
         self.img_queue.put([None,None])
         self.tinyimg_queue.put([None,None])
-        self.p_img.join()
-        self.p_tinyimg.join()
+        # self.p_img.join()
+        # self.p_tinyimg.join()
         
     def decodeImg(self, imgBytes):
-        pass
+        s = io.BytesIO(imgBytes)
+        img = Image.open(s).convert('RGBA')
+        return img.toqpixmap()
 
-class ImgReadThread(threading.Thread):
-    def __init__(self, q, pool):
+class ImgReadThread(QThread):
+    def __init__(self, system):
         super().__init__()
-        self.q = q
-        self.pool = pool
+        self.system = system
+        self.q = system.img_queue
+        self.pool = system.img_pool
 
     def run(self):
         while True:
-            path,callback = self.q.get()
+            path,_ = self.q.get()
             if path is None:
                 break
 
@@ -72,19 +84,27 @@ class ImgReadThread(threading.Thread):
                 continue
             img_b = open(path, 'rb').read()
             self.pool.add(path, img_b)
-            callback()
+            self.system.mainWindow.imgReady.emit(path)
 
-class TinyImgReadThread(threading.Thread):
-    def __init__(self, q, pool, img_extnames, tinyimg_filedir):
+class TinyImgReadThread(QThread):
+    def __init__(self, system):
         super().__init__()
-        self.q = q
-        self.pool = pool
-        self.img_extnames = img_extnames
-        self.tinyimg_filedir = tinyimg_filedir
+        self.system = system
+        self.q = system.tinyimg_queue
+        self.pool = system.tinyimg_pool
+        self.img_extnames = system.img_extnames
+        self.tinyimg_filedir = system.tinyimg_filedir
 
     def run(self):
+        try:
+            self.run2()
+        except:
+            print("thread error")
+            raise
+
+    def run2(self):
         while True:
-            path,callback = self.q.get()
+            path,args = self.q.get()
             if path is None:
                 break
 
@@ -104,22 +124,22 @@ class TinyImgReadThread(threading.Thread):
                             img_paths.append(img_path)
                     imgs = {}
                     for img_path in img_paths:
-                        img_b = open(path, 'rb').read()
-                        img = Image.open(img_b)
+                        img = Image.open(img_path).convert('RGB')
                         tinyimg,tinyimg_b = self.make_tinyimg(img)
-                        self.pool.add(img_path.tinyimg_b)
+                        self.pool.add(img_path, tinyimg_b)
                         imgs[img_path] = tinyimg_b
-                    pickle.dumps(imgs, open(pkl_dirpath,'wb'))
+                    pickle.dump(imgs, open(pkl_dirpath,'wb'))
 
-            callback()
+            self.system.mainWindow.tinyImgReady.emit(path, *args)
 
     def translate_path(self, path):
         path_md5 = md5(path.encode()).hexdigest()
         path = path.replace('\\','_').replace(':','')
-        return os.path.join(self.tinyimg_filedir, path+path_md5[:10]+'.pkl')
+        return os.path.join(self.tinyimg_filedir, f"{path}_{path_md5[:10]}.pkl")
 
     def make_tinyimg(self, img):
-        tinyimg = img.resize((1,1))
+        size = self.system.mainWindow.global_args['tinyimg_size']
+        tinyimg = img.resize((size,size))
         s = io.BytesIO()
         tinyimg.save(s,'jpeg')
         s.seek(0)

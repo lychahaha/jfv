@@ -15,7 +15,7 @@ class FilterWidget(QDockWidget):
 
         self.pathClearBtn.clicked.connect(self.slotPathClear)
         self.tagClearBtn.clicked.connect(self.slotTagClear)
-        self.okBtn.clicked.connect(self.parent().slotFilterImgs)
+        self.okBtn.clicked.connect(self.parent().slotFilterOK)
 
         self.content = QWidget()
         self.layout = QGridLayout(self.content)

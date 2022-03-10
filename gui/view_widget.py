@@ -1,4 +1,5 @@
 from fileinput import filename
+from genericpath import isdir
 import os
 from posixpath import dirname
 
@@ -12,112 +13,157 @@ class ViewWidget(QStackedWidget):
         super().__init__(parent)
 
         self.col = 2
-        self.cur_pos = [0,0]
-        self.cur_path = self.parent().global_args['img_default_filedir']
         self.cur_cnt = 0
-        self.cur_grid = None
-        self.cur_mode = 'dir' # dir|filter|img
+        self.cur_focus = []
 
         self.dirWidget = QScrollArea()
         self.contentWidget = QWidget()
         self.gridLayout = QGridLayout(self.contentWidget)
+        self.gridLayout.addWidget(GridWidget(self.parent(), r'D:\照片', (0,0)), 0, 0)
         self.dirWidget.setWidget(self.contentWidget)
-        
+
         self.imgWidget = ImgWidget(self.parent())
 
         self.addWidget(self.dirWidget)
         self.addWidget(self.imgWidget)
 
-        self.showDir(self.cur_path)
 
-    def changeFocus(self, grid):
-        old_grid = self.cur_grid
-        if old_grid is grid:
-            return
-        if old_grid is not None:
-            old_grid.lose_focus()
-        grid.get_focus()
-        self.cur_grid = grid
+    def slotGridPress(self, grid, ctrl, shift):
+        if not ctrl and not shift:
+            for g in self.cur_focus:
+                g.lose_focus()
+            self.cur_focus = [grid]
+            grid.get_focus()
+        elif ctrl and not shift:
+            if grid in self.cur_focus:
+                grid.lose_focus()
+                self.cur_focus.remove(grid)
+            else:
+                grid.get_focus()
+                self.cur_focus.append(grid)
+        elif not ctrl and shift:
+            for g in self.cur_focus:
+                g.lose_focus()
+            if len(self.cur_focus) == 0:
+                last_grid = self.gridLayout.itemAtPosition(0,0).widget()
+            else:
+                last_grid = self.cur_focus[-1]
+            self.cur_focus = []
+            if grid.pos[0] < last_grid.pos[0] or grid.pos[0]==last_grid.pos[0] and grid.pos[1]<=last_grid.pos[1]:
+                pbeg,pend = grid.pos,last_grid.pos
+            else:
+                pbeg,pend = last_grid.pos,grid.pos
+            pcur = list(pbeg)
+            while True:
+                cur_grid = self.gridLayout.itemAtPosition(*pcur).widget()
+                cur_grid.get_focus()
+                self.cur_focus.append(cur_grid)
+                
+                if tuple(pcur) == pend:
+                    break
+                
+                pcur[1] += 1
+                if pcur[1] == self.col:
+                    pcur[0] += 1
+                    pcur[1] = 0
+            if pbeg != grid.pos:
+                self.cur_focus = self.cur_focus[::-1]
+        elif ctrl and shift:
+            if len(self.cur_focus) == 0:
+                last_grid = self.gridLayout.itemAtPosition(0,0).widget()
+            else:
+                last_grid = self.cur_focus[-1]
+            if grid.pos[0] < last_grid.pos[0] or grid.pos[0]==last_grid.pos[0] and grid.pos[1]<=last_grid.pos[1]:
+                pbeg,pend = grid.pos,last_grid.pos
+            else:
+                pbeg,pend = last_grid.pos,grid.pos
+            pcur = list(pbeg)
+            while True:
+                cur_grid = self.gridLayout.itemAtPosition(*pcur).widget()
+                if cur_grid not in self.cur_focus:
+                    cur_grid.get_focus()
+                    self.cur_focus.append(cur_grid)
+                
+                if tuple(pcur) == pend:
+                    break
+                
+                pcur[1] += 1
+                if pcur[1] == self.col:
+                    pcur[0] += 1
+                    pcur[1] = 0
+            if pbeg != grid.pos:
+                self.cur_focus = self.cur_focus[::-1]
 
-    def showImg(self, grid):
-        self.setCurrentWidget(self.imgWidget)
-
-        self.imgWidget.reset_img(grid.path)
-        self.changeFocus(grid)
-
-        self.cur_path = grid.path
-        self.cur_mode = 'img'
-
-    def showImgs(self, paths):
+    def slotImgDoubleClick(self):
         self.setCurrentWidget(self.dirWidget)
-        self.clearLayout()
 
-        for path in paths:
-            self._addGrid(path, os.path.split(path)[1])
-
-        self.cur_mode = 'filter'
-        self.cur_grid = None
-
-    def showDir(self, path):
-        self.setCurrentWidget(self.dirWidget)
-        self.clearLayout()
-
+    def _showDir(self, path):
         names = ['..'] + os.listdir(path)
-        dir_names = [k for k in names if os.path.isdir(os.path.join(path,k))]
-        file_names = [k for k in names if not os.path.isdir(os.path.join(path,k))]
-        for name in dir_names:
-            self._addGrid(path,name)
-        for name in file_names:
-            self._addGrid(path,name)
+        paths = [os.path.abspath(os.path.join(path,k)) for k in names]
+        dir_paths = [k for k in paths if os.path.isdir(k)]
+        file_paths = [k for k in paths if os.path.isfile(k)]
 
-        self.cur_mode = 'dir'
-        self.cur_path = path
-        self.cur_grid = None
+        self.setCurrentWidget(self.dirWidget)
+        self._clearGrids()
+        self._addGrids(dir_paths+file_paths)
 
-    def clearLayout(self):
+    def _showImgs(self, paths):
+        self.setCurrentWidget(self.dirWidget)
+        self._clearGrids()
+        self._addGrids(paths)
+
+    def _showImg(self, grid):
+        self.setCurrentWidget(self.imgWidget)
+        self.imgWidget.reset_img(grid.path)
+        for g in self.cur_focus:
+            g.lose_focus()
+        grid.get_focus()
+        self.cur_focus = [grid]
+
+    def _clearGrids(self):
         for i in range(self.gridLayout.count()):
             self.gridLayout.itemAt(i).widget().deleteLater()
-        self.cur_pos = [0,0]
         self.cur_cnt += 1
+        self.cur_focus = []
 
-    def _addGrid(self, dir_path, name):
-        path = os.path.abspath(os.path.join(dir_path,name))
-        if os.path.isdir(path):
-            grid = GridWidget(self.parent(), 'dir', path, name)
-        elif os.path.splitext(path)[1] in self.parent().global_args['img_extnames']:
-            grid = GridWidget(self.parent(), 'img', path, name)
-        else:
-            grid = GridWidget(self.parent(), 'file', path, name)
-        self.gridLayout.addWidget(grid, self.cur_pos[0], self.cur_pos[1])
-        self._addPos()
-
-    def _addPos(self):
-        x,y = self.cur_pos
-        y += 1
-        if y == self.col:
-            x += 1
-            y = 0
-        self.cur_pos = [x,y]
-
-    def _subPos(self):
-        x,y = self.cur_pos
-        y -= 1
-        if y == -1:
-            x -= 1
-            y = self.col - 1
-        self.cur_pos = [x,y]
+    def _addGrids(self, paths):
+        pos = [0,0]
+        for i,path in enumerate(paths):
+            if i == 0 and os.path.isdir(path):
+                grid = GridWidget(self.parent(), path, tuple(pos), last_dir=True)
+            else:    
+                grid = GridWidget(self.parent(), path, tuple(pos))
+            self.gridLayout.addWidget(grid, pos[0], pos[1])
+            pos[1] += 1
+            if pos[1] == self.col:
+                pos[0] += 1
+                pos[1] = 0
 
 
 class GridWidget(QWidget):
-    def __init__(self, mainWindow, filetype, path, name):
+    def __init__(self, mainWindow, path, pos, last_dir=False):
         super().__init__()
         self.mainWindow = mainWindow
-        self.filetype = filetype
         self.path = path
-        self.name = name
+        self.pos = pos
+
+        # self.setFixedSize(300,250)
+
+        if last_dir:
+            self.name = '..'
+        else:
+            _,self.name = os.path.split(self.path)
+
+        if os.path.isdir(self.path):
+            self.filetype = 'dir'
+        elif os.path.splitext(self.path)[1] in self.mainWindow.global_args['img_extnames']:
+            self.filetype = 'img'
+        else:
+            self.filetype = 'file'
 
         self.imgLabel = QLabel('图片')
-        self.nameLabel = QLabel(name)
+        self.imgLabel.setFixedSize(250,250)
+        self.nameLabel = QLabel(self.name)
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
         self.layout.addWidget(self.nameLabel)
@@ -131,6 +177,22 @@ class GridWidget(QWidget):
         else:
             assert False, f'not expected type:{self.filetype}'
 
+    def get_pre_grid(self):
+        x,y = self.pos
+        y -= 1
+        if y == -1:
+            x -= 1
+            y = 0
+        return self.mainWindow.viewWidget.gridLayout.itemAtPosition(x, y).widget()
+
+    def get_next_grid(self):
+        x,y = self.pos
+        y += 1
+        if y == self.mainWindow.viewWidget.col:
+            x += 1
+            y = 0
+        return self.mainWindow.viewWidget.gridLayout.itemAtPosition(x, y).widget()
+
     def get_focus(self):
         palette = QPalette()
         palette.setColor(QPalette.WindowText, Qt.red)
@@ -142,10 +204,10 @@ class GridWidget(QWidget):
         self.nameLabel.setPalette(palette)
 
     def mouseDoubleClickEvent(self, e):
-        self.mainWindow.slotDoubleClickGrid(self)
+        self.mainWindow.slotGridDoubleClick(self)
 
     def mousePressEvent(self, e):
-        self.mainWindow.slotPressGrid(self)
+        self.mainWindow.slotGridPress(self)
 
 
 
@@ -157,10 +219,10 @@ class ImgWidget(QWidget):
         self.cur_path = path
 
         self.imgLabel = QLabel()
-        self.reset_img(self.cur_path)
-
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.imgLabel)
+
+        self.reset_img(self.cur_path)
 
     def reset_img(self, path):
         self.cur_path = path

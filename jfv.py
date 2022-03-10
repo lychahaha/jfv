@@ -20,7 +20,11 @@ class JFV(object):
         self.gui.img_system.close()
 
 if __name__ == '__main__':
-    jfv = JFV()
-    jfv.start()
-    jfv.close()
-    
+    try:
+        jfv = JFV()
+        jfv.start()
+        jfv.close()
+    except:
+        jfv.close()
+        raise
+        

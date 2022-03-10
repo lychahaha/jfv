@@ -4,8 +4,11 @@ tinyimg_poolsize: 500
 tag_filepath: "data\\tag.pkl"
 tinyimg_filedir: "data\\tinyimg"
 img_default_filedir: "D:\\照片"
+# img_default_filedir: "D:\\照片\\尬"
 img_extnames: [".jpg",".jpeg",".png"]
 
 dir_icon_path: "resource\\dir.ico"
 file_icon_path: "resource\\file.ico"
 img_icon_path: "resource\\img.ico"
+
+tinyimg_size: 250
