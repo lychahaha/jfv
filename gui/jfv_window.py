@@ -41,6 +41,7 @@ class JFVWindow(QMainWindow):
 
         self.createAction()
         self.createMenu()
+        self.createToolBar()
         self.createBody()
 
         self.tinyImgReady.connect(self.slotTinyImgLoaded)
@@ -51,10 +52,25 @@ class JFVWindow(QMainWindow):
     def createAction(self):
         self.aboutAction = QAction('版本信息', self)
         self.aboutAction.triggered.connect(self.slotAboutAction)
+        self.backAction = QAction('后退', self)
+        self.backAction.triggered.connect(self.slotBackAction)
+        self.homeAction = QAction('主页', self)
+        self.homeAction.triggered.connect(self.slotHomeAction)
+        self.helpAction = QAction('帮助', self)
+        self.helpAction.triggered.connect(self.slotHelpAction)
+        self.favourAction = QAction('收藏', self)
+        self.favourAction.triggered.connect(self.slotFavourAction)
 
     def createMenu(self):
         self.helpMenu = self.menuBar().addMenu('帮助')
         self.helpMenu.addAction(self.aboutAction)
+        self.helpMenu.addAction(self.helpAction)
+
+    def createToolBar(self):
+        self.toolBar = self.addToolBar('all')
+        self.toolBar.addAction(self.backAction)
+        self.toolBar.addAction(self.homeAction)
+        self.toolBar.addAction(self.favourAction)
 
     def createBody(self):
         self.statusLabel = QLabel()
@@ -66,11 +82,14 @@ class JFVWindow(QMainWindow):
         self.filterWidget = FilterWidget('筛选工作区', self)
         self.addDockWidget(Qt.TopDockWidgetArea, self.filterWidget)
 
-    def loadImg(self, widget, path):
+    def loadImg(self, path):
         if self.img_system.hasImg(path):
             img = self.img_system.getImg(path)
-            widget.imgLabel.setPixmap(img)
+            self.viewWidget.imgWidget.setImg(img)
         else:
+            if self.img_system.hasTinyImg(path):
+                tinyimg = self.img_system.getTinyImg(path)
+                self.viewWidget.imgWidget.setImg(tinyimg)
             self.img_system.getImg_async(path, None)
 
     def loadTinyImg(self, grid, path):
@@ -94,7 +113,7 @@ class JFVWindow(QMainWindow):
             return
         
         img = self.img_system.getImg(path)
-        self.viewWidget.imgWidget.imgLabel.setPixmap(img)
+        self.viewWidget.imgWidget.setImg(img)
 
     def slotFilterOK(self):
         pathStr = self.filterWidget.pathLineEdit.text().strip()
@@ -140,3 +159,25 @@ class JFVWindow(QMainWindow):
         msgbox.setWindowTitle('版本信息')
         msgbox.setText('V-0.1')
         msgbox.exec_()
+
+    def slotBackAction(self):
+        cur_path = self.filterWidget.pathLineEdit.text().strip()
+        base_path,_ = os.path.split(cur_path)
+        self.filterWidget.pathLineEdit.setText(base_path)
+        self.slotFilterOK()
+
+    def slotHomeAction(self):
+        self.filterWidget.pathLineEdit.setText(self.global_args['img_default_filedir'])
+        self.filterWidget.tagLineEdit.setText('')
+        self.slotFilterOK()
+
+    def slotHelpAction(self):
+        msgbox = QMessageBox()
+        msgbox.setWindowTitle('帮助')
+        msgbox.setText('自己思考')
+        msgbox.exec_()
+
+
+    def slotFavourAction(self):
+        pass
+

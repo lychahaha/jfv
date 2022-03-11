@@ -17,6 +17,7 @@ class ViewWidget(QStackedWidget):
         self.cur_focus = []
 
         self.dirWidget = QScrollArea()
+        self.dirWidget.setWidgetResizable(True)
         self.contentWidget = QWidget()
         self.gridLayout = QGridLayout(self.contentWidget)
         self.gridLayout.addWidget(GridWidget(self.parent(), r'D:\照片', (0,0)), 0, 0)
@@ -219,9 +220,11 @@ class ImgWidget(QWidget):
         self.cur_path = path
 
         self.imgLabel = QLabel()
-        self.layout = QVBoxLayout()
+        self.imgLabel.setFixedSize(800, 800)
+        self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
 
+        self.cur_path = "D:\\照片\\尬\\IMG_20211226_120802.jpg"
         self.reset_img(self.cur_path)
 
     def reset_img(self, path):
@@ -229,4 +232,11 @@ class ImgWidget(QWidget):
         if self.cur_path is None:
             self.imgLabel.setText('')
         else:
-            self.mainWindow.loadImg(self, self.cur_path)
+            self.mainWindow.loadImg(self.cur_path)
+
+    def setImg(self, img):
+        img = img.scaled(800, 800)
+        self.imgLabel.setPixmap(img)
+
+    def mouseDoubleClickEvent(self, e):
+        self.mainWindow.slotImgDoubleClick()
