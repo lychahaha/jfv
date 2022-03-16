@@ -12,3 +12,5 @@ file_icon_path: "resource\\file.ico"
 img_icon_path: "resource\\img.ico"
 
 tinyimg_size: 250
+
+debug: True

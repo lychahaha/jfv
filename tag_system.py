@@ -1,6 +1,7 @@
 import enum
 import os
 import pickle
+import copy
 
 op_chs = set(['(',')','|','&','!','=','#'])
 op_adv = {'|':1,'&':2,'!':4,'==':3,'!=':3,'#':0}
@@ -23,18 +24,20 @@ class TagSystem(object):
 
         self.meta_tag_tree = [0,[]]
         self.meta_kvtag_list = []
-        self.meta_tag2name = {}
+        self.meta_tag2name = {0:'root'}
         self.meta_tag_cnt = 1
 
         self.reset()
 
     def updateTag(self, path, tagDict):
-        self.tag_dict[path] = tagDict
+        self.tag_dict[path] = copy.deepcopy(tagDict)
         self.is_dirty = True
 
     def getTag(self, path):
-        return self.tag_dict[path]
-
+        if path not in self.tag_dict:
+            return {}
+        else:
+            return copy.deepcopy(self.tag_dict[path])
 
 
     def addMetaTag(self, tagName, fatherTag):
@@ -44,27 +47,28 @@ class TagSystem(object):
         self.meta_tag2name[self.meta_tag_cnt] = tagName
         self.meta_tag_cnt += 1
         self.is_dirty = True
+        return self.meta_tag_cnt - 1
 
     def removeMetaTag(self, tag):
         tagNode,fatherNode = self._dfs_find(tag)
         assert tagNode is not None, f'tag({tag}) not found'
         self._dfs_exec(tagNode, lambda cur_node:self.meta_tag2name.pop(cur_node[0]))
         ix = [k for k,son_node in enumerate(fatherNode[1]) if son_node[0] == tag][0]
-        fatherNode.pop(ix)
+        fatherNode[1].pop(ix)
         self.is_dirty = True
 
     def moveMetaTag(self, tag, dstFatherTag, dstBigBroTag):
         tagNode,fatherNode = self._dfs_find(tag)
         assert tagNode is not None, f'tag({tag}) not found'
         ix = [k for k,son_node in enumerate(fatherNode[1]) if son_node[0] == tag][0]
-        fatherNode.pop(ix)
+        fatherNode[1].pop(ix)
         dstFatherNode,_ = self._dfs_find(dstFatherTag)
         assert dstFatherNode is not None, f'dstFatherTag({dstFatherTag}) not found'
         if dstBigBroTag < 0:
             dstFatherNode[1].insert(0, tagNode)
         else:
             ix_bigbro = [k for k,son_node in enumerate(dstFatherNode[1]) if son_node[0] == dstBigBroTag]
-            assert len(ix_bigbro)!=-1, f'dstBigBroTag({dstBigBroTag}) not found'
+            assert len(ix_bigbro)!=0, f'dstBigBroTag({dstBigBroTag}) not found'
             ix_bigbro = ix_bigbro[0]
             dstFatherNode[1].insert(ix_bigbro+1, tagNode)
         self.is_dirty = True
@@ -111,6 +115,7 @@ class TagSystem(object):
         ret = (None,None)
         def dfs(cur_node,fa_node):
             if cur_node[0] == tag:
+                nonlocal ret
                 ret = (cur_node,fa_node)
                 return True
             for son_node in cur_node[1]:
@@ -162,7 +167,13 @@ class TagSystem(object):
         if len(remove_paths) > 0:
             self.is_dirty = True
 
-
+    def printMetaTagTree(self):
+        def dfs(cur_node, deep):
+            print("  "*deep, end='')
+            print(f"{cur_node[0]}:{self.meta_tag2name[cur_node[0]]}")
+            for son_node in cur_node[1]:
+                dfs(son_node, deep+1)
+        dfs(self.meta_tag_tree, 0)
 
     def filterImage(self, pathStr, tagStr):
         paths = self._filterImageByPath(pathStr)

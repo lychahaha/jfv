@@ -9,8 +9,10 @@ import win32con
 
 from img_system import ImgSystem
 from tag_system import TagSystem
-from gui.view_widget import ViewWidget,GridWidget
+from gui.view_widget import ViewWidget
 from gui.filter_widget import FilterWidget
+from gui.tag_widget import TagWidget
+from gui.info_widget import InfoWidget
 
 class JFVWindow(QMainWindow):
     tinyImgReady = pyqtSignal(str,int,int,int)
@@ -82,6 +84,12 @@ class JFVWindow(QMainWindow):
         self.filterWidget = FilterWidget('筛选工作区', self)
         self.addDockWidget(Qt.TopDockWidgetArea, self.filterWidget)
 
+        self.tagWidget = TagWidget('标签树', self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.tagWidget)
+
+        self.infoWidget = InfoWidget('图片信息', self)
+        self.addDockWidget(Qt.RightDockWidgetArea, self.infoWidget)
+
     def loadImg(self, path):
         if self.img_system.hasImg(path):
             img = self.img_system.getImg(path)
@@ -126,12 +134,14 @@ class JFVWindow(QMainWindow):
             self.viewWidget._showImgs(select_imgs)
         else:
             self.viewWidget._showDir(pathStr)
+        self.tagWidget.fill_value()
         #tag-info
 
     def slotGridPress(self, grid):
         ctrl = win32api.GetKeyState(win32con.VK_CONTROL) < 0
         shift = win32api.GetKeyState(win32con.VK_SHIFT) < 0
         self.viewWidget.slotGridPress(grid, ctrl, shift)
+        self.tagWidget.fill_value()
         #tag-info
 
     def slotGridDoubleClick(self, grid):
@@ -142,15 +152,18 @@ class JFVWindow(QMainWindow):
         elif grid.filetype == 'dir':
             self.viewWidget._showDir(grid.path)
             self.filterWidget.pathLineEdit.setText(grid.path)
+            self.tagWidget.fill_value()
             #tag-info
         elif grid.filetype == 'img':
             self.viewWidget._showImg(grid)
+            self.tagWidget.fill_value()
             #tag-info
         else:
             assert False, f'not expected type:{grid.filetype}'
 
     def slotImgDoubleClick(self):
         self.viewWidget.slotImgDoubleClick()
+        self.tagWidget.fill_value()
         #tag-info
 
 

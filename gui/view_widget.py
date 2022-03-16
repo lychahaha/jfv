@@ -1,7 +1,4 @@
-from fileinput import filename
-from genericpath import isdir
 import os
-from posixpath import dirname
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -97,6 +94,11 @@ class ViewWidget(QStackedWidget):
 
     def slotImgDoubleClick(self):
         self.setCurrentWidget(self.dirWidget)
+
+    def printInfo(self):
+        print('focus:', [os.path.split(g.path)[1] for g in self.cur_focus])
+        print(f'cur_cnt:{self.cur_cnt}')
+        print(f'img_path:{os.path.split(self.imgWidget.cur_path)[1]}')
 
     def _showDir(self, path):
         names = ['..'] + os.listdir(path)
@@ -220,7 +222,7 @@ class ImgWidget(QWidget):
         self.cur_path = path
 
         self.imgLabel = QLabel()
-        self.imgLabel.setFixedSize(800, 800)
+        self.imgLabel.setFixedSize(600, 600)
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
 
@@ -235,7 +237,7 @@ class ImgWidget(QWidget):
             self.mainWindow.loadImg(self.cur_path)
 
     def setImg(self, img):
-        img = img.scaled(800, 800)
+        img = img.scaled(600, 600)
         self.imgLabel.setPixmap(img)
 
     def mouseDoubleClickEvent(self, e):
