@@ -11,8 +11,10 @@ class TagWidget(QDockWidget):
         self.menu = QMenu(self.tagTree)
         self.addTagAction = QAction("添加标签")
         self.removeTagAction = QAction("删除标签")
+        self.renameTagAction = QAction('重命名')
         self.menu.addAction(self.addTagAction)
         self.menu.addAction(self.removeTagAction)
+        self.menu.addAction(self.renameTagAction)
         self.tagTree.customContextMenuRequested.connect(self.slotMenuPopup)
 
         self.remake_tree()
@@ -79,18 +81,21 @@ class TagWidget(QDockWidget):
         item = self.tagTree.itemAt(pos)
         if item is None:
             self.removeTagAction.setEnabled(False)
+            self.renameTagAction.setEnabled(False)
         else:
             self.removeTagAction.setEnabled(True)
+            self.renameTagAction.setEnabled(True)
         action = self.menu.exec_(self.tagTree.mapToGlobal(pos))
-
 
         if action is self.addTagAction:
             self.slotAddMetaTag(item)
         elif action is self.removeTagAction:
             self.slotRemoveMetaTag(item)
+        elif action is self.renameTagAction:
+            self.slotRenameMetaTag(item)
 
     def slotAddMetaTag(self, fatherItem):
-        ok,newTagName = self.execAddMetaTagDialog()
+        ok,newTagName = self._execAddMetaTagDialog()
         if not ok or newTagName == "":
             return
 
@@ -139,12 +144,35 @@ class TagWidget(QDockWidget):
         self.resetBtn.setEnabled(True)
         self.printInfo()
 
-    def execAddMetaTagDialog(self):
+    def slotRenameMetaTag(self, item):
+        ok,newTagName = self._execRanameMetaTagDialog(item.text(0))
+        if not ok or newTagName == "":
+            return
+
+        tag = item.data(0, Qt.UserRole)
+        self.parent().tag_system.renameMetaTag(tag, newTagName)
+        item.setText(0, newTagName)
+
+        self.saveBtn.setEnabled(True)
+        self.resetBtn.setEnabled(True)
+        self.printInfo()
+
+    def _execAddMetaTagDialog(self):
         dialog = QInputDialog()
         dialog.setWindowTitle('添加标签')
         dialog.setLabelText('请输入新标签')
         dialog.setOkButtonText('确定')
         dialog.setCancelButtonText('取消')
+        ret = dialog.exec_()
+        return ret,dialog.textValue()
+
+    def _execRanameMetaTagDialog(self, old_name):
+        dialog = QInputDialog()
+        dialog.setWindowTitle('重命名')
+        dialog.setLabelText('请输入标签的新名字')
+        dialog.setOkButtonText('确定')
+        dialog.setCancelButtonText('取消')
+        dialog.setTextValue(old_name)
         ret = dialog.exec_()
         return ret,dialog.textValue()
 

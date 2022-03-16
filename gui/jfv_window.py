@@ -135,14 +135,14 @@ class JFVWindow(QMainWindow):
         else:
             self.viewWidget._showDir(pathStr)
         self.tagWidget.fill_value()
-        #tag-info
+        self.infoWidget.fill_value()
 
     def slotGridPress(self, grid):
         ctrl = win32api.GetKeyState(win32con.VK_CONTROL) < 0
         shift = win32api.GetKeyState(win32con.VK_SHIFT) < 0
         self.viewWidget.slotGridPress(grid, ctrl, shift)
         self.tagWidget.fill_value()
-        #tag-info
+        self.infoWidget.fill_value()
 
     def slotGridDoubleClick(self, grid):
         if grid.filetype == 'file':
@@ -153,19 +153,18 @@ class JFVWindow(QMainWindow):
             self.viewWidget._showDir(grid.path)
             self.filterWidget.pathLineEdit.setText(grid.path)
             self.tagWidget.fill_value()
-            #tag-info
+            self.infoWidget.fill_value()
         elif grid.filetype == 'img':
             self.viewWidget._showImg(grid)
             self.tagWidget.fill_value()
-            #tag-info
+            self.infoWidget.fill_value()
         else:
             assert False, f'not expected type:{grid.filetype}'
 
     def slotImgDoubleClick(self):
         self.viewWidget.slotImgDoubleClick()
         self.tagWidget.fill_value()
-        #tag-info
-
+        self.infoWidget.fill_value()
 
     def slotAboutAction(self):
         msgbox = QMessageBox()
