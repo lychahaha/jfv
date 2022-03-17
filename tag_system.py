@@ -2,6 +2,7 @@ import enum
 import os
 import pickle
 import copy
+import datetime
 
 op_chs = set(['(',')','|','&','!','=','#'])
 op_adv = {'|':1,'&':2,'!':4,'==':3,'!=':3,'#':0}
@@ -15,8 +16,8 @@ op_func = {
 }
 
 class TagSystem(object):
-    def __init__(self, tag_filepath, img_extnames):
-        self.tag_filepath = tag_filepath
+    def __init__(self, tag_filedir, img_extnames):
+        self.tag_filedir = tag_filedir
         self.img_extnames = img_extnames
 
         self.tag_dict = {} #path->dict(k->v)
@@ -137,14 +138,21 @@ class TagSystem(object):
 
     def save(self):
         data = [self.meta_tag_cnt,self.meta_tag_tree,self.meta_kvtag_list,self.meta_tag2name,self.tag_dict]
-        pickle.dump(data, open(self.tag_filepath,'wb'))
+        os.makedirs(self.tag_filedir, exist_ok=True)
+        pickle.dump(data, open(os.path.join(self.tag_filedir,'tag.pkl'),'wb'))
         self.is_dirty = False
 
+    def auto_save(self):
+        data = [self.meta_tag_cnt,self.meta_tag_tree,self.meta_kvtag_list,self.meta_tag2name,self.tag_dict]
+        time_str = datetime.datetime.strftime(datetime.datetime.now(), "%Y_%m_%d_%H_%M_%S")
+        auto_save_path = os.path.join(self.tag_filedir,f'tag_{time_str}.pkl')
+        pickle.dump(data, open(auto_save_path,'wb'))
+
     def reset(self):
-        if not os.path.exists(self.tag_filepath):
+        if not os.path.exists(os.path.join(self.tag_filedir,'tag.pkl')):
             self.save()
             return
-        data = pickle.load(open(self.tag_filepath,'rb'))
+        data = pickle.load(open(os.path.join(self.tag_filedir,'tag.pkl'),'rb'))
         self.meta_tag_cnt,self.meta_tag_tree,self.meta_kvtag_list,self.meta_tag2name,self.tag_dict = data
         self.is_dirty = False
 

@@ -9,8 +9,6 @@ class InfoWidget(QDockWidget):
     def __init__(self, title, parent):
         super().__init__(title, parent)
 
-        self.tagWidget = self.parent().tagWidget
-
         self.imgInfoWidget = QTreeWidget()
         self.imgInfoWidget.setColumnCount(2)
         self.imgInfoWidget.setHeaderHidden(True)

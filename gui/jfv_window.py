@@ -13,6 +13,7 @@ from gui.view_widget import ViewWidget
 from gui.filter_widget import FilterWidget
 from gui.tag_widget import TagWidget
 from gui.info_widget import InfoWidget
+from gui.fastfunc_widget import FastFuncWidget
 
 class JFVWindow(QMainWindow):
     tinyImgReady = pyqtSignal(str,int,int,int)
@@ -21,8 +22,8 @@ class JFVWindow(QMainWindow):
     def __init__(self, global_args):
         super().__init__()
         self.global_args = global_args
-        require_abs_args = ['tag_filepath','tinyimg_filedir','dir_icon_path',
-                            'file_icon_path','img_icon_path']
+        require_abs_args = ['tag_filedir','tinyimg_filedir','dir_icon_path',
+                            'file_icon_path','img_icon_path','fastfunc_filepath']
         for name in require_abs_args:
             self.global_args[name] = os.path.join(os.getcwd(), self.global_args[name])
 
@@ -38,7 +39,7 @@ class JFVWindow(QMainWindow):
                                    self.global_args['img_extnames'],
                                    self.global_args['tinyimg_filedir'],
                                    self)
-        self.tag_system = TagSystem(self.global_args['tag_filepath'],
+        self.tag_system = TagSystem(self.global_args['tag_filedir'],
                                    self.global_args['img_extnames'])
 
         self.createAction()
@@ -60,8 +61,6 @@ class JFVWindow(QMainWindow):
         self.homeAction.triggered.connect(self.slotHomeAction)
         self.helpAction = QAction('帮助', self)
         self.helpAction.triggered.connect(self.slotHelpAction)
-        self.favourAction = QAction('收藏', self)
-        self.favourAction.triggered.connect(self.slotFavourAction)
 
     def createMenu(self):
         self.helpMenu = self.menuBar().addMenu('帮助')
@@ -72,7 +71,6 @@ class JFVWindow(QMainWindow):
         self.toolBar = self.addToolBar('all')
         self.toolBar.addAction(self.backAction)
         self.toolBar.addAction(self.homeAction)
-        self.toolBar.addAction(self.favourAction)
 
     def createBody(self):
         self.statusLabel = QLabel()
@@ -89,6 +87,9 @@ class JFVWindow(QMainWindow):
 
         self.infoWidget = InfoWidget('图片信息', self)
         self.addDockWidget(Qt.RightDockWidgetArea, self.infoWidget)
+
+        self.fastFuncWidget = FastFuncWidget('快速功能区', self)
+        self.addDockWidget(Qt.LeftDockWidgetArea, self.fastFuncWidget)
 
     def loadImg(self, path):
         if self.img_system.hasImg(path):
@@ -136,6 +137,7 @@ class JFVWindow(QMainWindow):
             self.viewWidget._showDir(pathStr)
         self.tagWidget.fill_value()
         self.infoWidget.fill_value()
+        self.fastFuncWidget.updateHistory(pathStr, tagStr)
 
     def slotGridPress(self, grid):
         ctrl = win32api.GetKeyState(win32con.VK_CONTROL) < 0
@@ -150,10 +152,8 @@ class JFVWindow(QMainWindow):
             msgbox.setText('JFV只能打开图片')
             msgbox.exec_()
         elif grid.filetype == 'dir':
-            self.viewWidget._showDir(grid.path)
             self.filterWidget.pathLineEdit.setText(grid.path)
-            self.tagWidget.fill_value()
-            self.infoWidget.fill_value()
+            self.slotFilterOK()
         elif grid.filetype == 'img':
             self.viewWidget._showImg(grid)
             self.tagWidget.fill_value()
@@ -165,6 +165,15 @@ class JFVWindow(QMainWindow):
         self.viewWidget.slotImgDoubleClick()
         self.tagWidget.fill_value()
         self.infoWidget.fill_value()
+
+    def slotListDoubleClick(self, item):
+        k = item.listWidget().k1
+        s = item.text()
+        if k == 'path':
+            self.filterWidget.pathLineEdit.setText(s)
+        else:
+            self.filterWidget.tagLineEdit.setText(s)
+        self.slotFilterOK()
 
     def slotAboutAction(self):
         msgbox = QMessageBox()
@@ -188,8 +197,4 @@ class JFVWindow(QMainWindow):
         msgbox.setWindowTitle('帮助')
         msgbox.setText('自己思考')
         msgbox.exec_()
-
-
-    def slotFavourAction(self):
-        pass
 

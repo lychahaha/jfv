@@ -6,6 +6,7 @@ class TagWidget(QDockWidget):
     def __init__(self, title, parent):
         super().__init__(title, parent)
 
+        self.tag2item = {}
         self.tagTree = TagTree(self)
         
         self.menu = QMenu(self.tagTree)
@@ -19,8 +20,6 @@ class TagWidget(QDockWidget):
 
         self.remake_tree()
         self.tagTree.expandAll()
-
-        self.tag2item = {}
 
         self.saveBtn = QPushButton('保存')
         self.resetBtn = QPushButton('重设')

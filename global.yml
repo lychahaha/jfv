@@ -1,16 +1,17 @@
 img_poolsize: 50
 tinyimg_poolsize: 500
 
-tag_filepath: "data\\tag.pkl"
+tag_filedir: "data\\tag"
 tinyimg_filedir: "data\\tinyimg"
 img_default_filedir: "D:\\照片"
-# img_default_filedir: "D:\\照片\\尬"
-img_extnames: [".jpg",".jpeg",".png"]
+img_extnames: [".jpg",".jpeg",".png",'.JPG','.JPEG','.PNG']
+fastfunc_filepath: "data\\fastfunc.pkl"
 
 dir_icon_path: "resource\\dir.ico"
 file_icon_path: "resource\\file.ico"
 img_icon_path: "resource\\img.ico"
 
 tinyimg_size: 250
+max_history_size: 20
 
 debug: True

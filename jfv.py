@@ -18,6 +18,7 @@ class JFV(object):
 
     def close(self):
         self.gui.img_system.close()
+        self.gui.fastFuncWidget.saveData()
 
 if __name__ == '__main__':
     try:
