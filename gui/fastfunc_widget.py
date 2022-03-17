@@ -16,10 +16,10 @@ class FastFuncWidget(QDockWidget):
 
         self.content = QWidget()
         layout = QVBoxLayout(self.content)
-        layout.addWidget(self.widgets['path']['history'])
-        layout.addWidget(self.widgets['tag']['history'])
-        layout.addWidget(self.widgets['path']['favour'])
-        layout.addWidget(self.widgets['tag']['favour'])
+        layout.addWidget(MyGroupBox(self.widgets['path']['history'],'路径历史'))
+        layout.addWidget(MyGroupBox(self.widgets['tag']['history'],'标签历史'))
+        layout.addWidget(MyGroupBox(self.widgets['path']['favour'],'路径收藏夹'))
+        layout.addWidget(MyGroupBox(self.widgets['tag']['favour'],'标签收藏夹'))
         self.setWidget(self.content)
 
         self.loadData()
@@ -51,7 +51,7 @@ class MyListWidget(QListWidget):
         self.mainWindow = mainWindow
         self.k1 = k1
         self.k2 = k2
-
+    
         self.setContextMenuPolicy(Qt.CustomContextMenu)
         self.customContextMenuRequested.connect(self.slotMenuPopup)
 
@@ -137,3 +137,10 @@ class MyListWidget(QListWidget):
             item = self.item(i)
             data.append(item.text())
         return data
+
+class MyGroupBox(QGroupBox):
+    def __init__(self, content, title):
+        super().__init__()
+        self.setTitle(title)
+        self.layout = QVBoxLayout(self)
+        self.layout.addWidget(content)

@@ -13,6 +13,8 @@ class FilterWidget(QDockWidget):
         self.tagClearBtn = QPushButton('清除')
         self.okBtn = QPushButton('确定')
 
+        self.pathLineEdit.returnPressed.connect(self.parent().slotFilterOK)
+        self.tagLineEdit.returnPressed.connect(self.parent().slotFilterOK)
         self.pathClearBtn.clicked.connect(self.slotPathClear)
         self.tagClearBtn.clicked.connect(self.slotTagClear)
         self.okBtn.clicked.connect(self.parent().slotFilterOK)
@@ -27,6 +29,8 @@ class FilterWidget(QDockWidget):
         self.layout.addWidget(self.tagClearBtn, 1, 2)
         self.layout.addWidget(self.okBtn, 2, 0)
         self.setWidget(self.content)
+
+        self.setTabOrder(self.pathLineEdit, self.tagLineEdit)
         
     def slotPathClear(self):
         self.pathLineEdit.setText('')

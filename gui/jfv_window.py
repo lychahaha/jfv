@@ -1,5 +1,6 @@
 import os,sys
 import threading
+import subprocess
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -61,11 +62,14 @@ class JFVWindow(QMainWindow):
         self.homeAction.triggered.connect(self.slotHomeAction)
         self.helpAction = QAction('帮助', self)
         self.helpAction.triggered.connect(self.slotHelpAction)
+        self.optionsAction = QAction('首选项', self)
+        self.optionsAction.triggered.connect(self.slotOptionsAction)
 
     def createMenu(self):
         self.helpMenu = self.menuBar().addMenu('帮助')
         self.helpMenu.addAction(self.aboutAction)
         self.helpMenu.addAction(self.helpAction)
+        self.helpMenu.addAction(self.optionsAction)
 
     def createToolBar(self):
         self.toolBar = self.addToolBar('all')
@@ -198,3 +202,24 @@ class JFVWindow(QMainWindow):
         msgbox.setText('自己思考')
         msgbox.exec_()
 
+    def slotOptionsAction(self):
+        subprocess.Popen(f'notepad {os.path.join(os.getcwd(),"global.yml")}')
+
+    def closeEvent(self, e) -> None:
+        if not self.tag_system.is_dirty:
+            return super().closeEvent(e)
+
+        msg = QMessageBox()
+        msg.setText('你的标签修改还未保存！')
+        msg.addButton('保存再退出', QMessageBox.AcceptRole)
+        msg.addButton('直接退出', QMessageBox.RejectRole)
+        msg.addButton('取消', QMessageBox.DestructiveRole)
+        result = msg.exec_()
+
+        if result == QMessageBox.AcceptRole:
+            self.tag_system.save()
+            return super().closeEvent(e)
+        elif result == QMessageBox.RejectRole:
+            return super().closeEvent(e)
+        elif result == QMessageBox.DestructiveRole:
+            e.ignore()

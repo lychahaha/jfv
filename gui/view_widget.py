@@ -15,7 +15,7 @@ class ViewWidget(QStackedWidget):
 
         self.dirWidget = QScrollArea()
         self.dirWidget.setWidgetResizable(True)
-        self.contentWidget = QWidget()
+        self.contentWidget = MyTableWidget()
         self.gridLayout = QGridLayout(self.contentWidget)
         self.gridLayout.addWidget(GridWidget(self.parent(), r'D:\照片', (0,0)), 0, 0)
         self.dirWidget.setWidget(self.contentWidget)
@@ -95,6 +95,12 @@ class ViewWidget(QStackedWidget):
     def slotImgDoubleClick(self):
         self.setCurrentWidget(self.dirWidget)
 
+    def keyPressEvent(self, e):
+        print(e.key())
+        if e.key() == Qt.Key_Enter:
+            print("hee")
+        return super().keyPressEvent(e)
+
     def printInfo(self):
         print('focus:', [os.path.split(g.path)[1] for g in self.cur_focus])
         print(f'cur_cnt:{self.cur_cnt}')
@@ -142,6 +148,15 @@ class ViewWidget(QStackedWidget):
                 pos[0] += 1
                 pos[1] = 0
 
+class MyTableWidget(QWidget):
+    def keyPressEvent(self, e):
+        print(e.key())
+        if e.key() == Qt.Key_Return:
+            # self.mainWindow
+            pass
+        else:
+            pass
+        return super().keyPressEvent(e)
 
 class GridWidget(QWidget):
     def __init__(self, mainWindow, path, pos, last_dir=False):
@@ -211,7 +226,6 @@ class GridWidget(QWidget):
 
     def mousePressEvent(self, e):
         self.mainWindow.slotGridPress(self)
-
 
 
 class ImgWidget(QWidget):
