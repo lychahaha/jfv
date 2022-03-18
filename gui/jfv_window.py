@@ -179,6 +179,11 @@ class JFVWindow(QMainWindow):
             self.filterWidget.tagLineEdit.setText(s)
         self.slotFilterOK()
 
+    def slotImgKeyPress(self, e):
+        self.viewWidget.slotImgKeyPress(e)
+        self.tagWidget.fill_value()
+        self.infoWidget.fill_value()
+
     def slotAboutAction(self):
         msgbox = QMessageBox()
         msgbox.setWindowTitle('版本信息')

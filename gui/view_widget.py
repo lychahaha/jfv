@@ -13,9 +13,9 @@ class ViewWidget(QStackedWidget):
         self.cur_cnt = 0
         self.cur_focus = []
 
-        self.dirWidget = QScrollArea()
+        self.dirWidget = MyScrollArea(self.parent())
         self.dirWidget.setWidgetResizable(True)
-        self.contentWidget = MyTableWidget()
+        self.contentWidget = QWidget()
         self.gridLayout = QGridLayout(self.contentWidget)
         self.gridLayout.addWidget(GridWidget(self.parent(), r'D:\照片', (0,0)), 0, 0)
         self.dirWidget.setWidget(self.contentWidget)
@@ -24,7 +24,6 @@ class ViewWidget(QStackedWidget):
 
         self.addWidget(self.dirWidget)
         self.addWidget(self.imgWidget)
-
 
     def slotGridPress(self, grid, ctrl, shift):
         if not ctrl and not shift:
@@ -95,11 +94,15 @@ class ViewWidget(QStackedWidget):
     def slotImgDoubleClick(self):
         self.setCurrentWidget(self.dirWidget)
 
-    def keyPressEvent(self, e):
-        print(e.key())
-        if e.key() == Qt.Key_Enter:
-            print("hee")
-        return super().keyPressEvent(e)
+    def slotImgKeyPress(self, e):
+        assert e.key() in [Qt.Key_Left, Qt.Key_Right], f'unexpected key({e.key()})'
+        is_left = e.key() == Qt.Key_Left
+        old_item = self.cur_focus[0]
+        old_ix = self.gridLayout.indexOf(old_item)
+        new_item = self._findPreImgGrid(old_ix) if is_left else self._findNextImgGrid(old_ix)
+        if new_item is None:
+            return
+        self._showImg(new_item)
 
     def printInfo(self):
         print('focus:', [os.path.split(g.path)[1] for g in self.cur_focus])
@@ -148,15 +151,29 @@ class ViewWidget(QStackedWidget):
                 pos[0] += 1
                 pos[1] = 0
 
-class MyTableWidget(QWidget):
+    def _findNextImgGrid(self, ix):
+        for i in range(ix+1, self.gridLayout.count()):
+            item = self.gridLayout.itemAt(i).widget()
+            if item.filetype == 'img':
+                return item
+        return None
+
+    def _findPreImgGrid(self, ix):
+        for i in range(ix-1, -1, -1):
+            item = self.gridLayout.itemAt(i).widget()
+            if item.filetype == 'img':
+                return item
+        return None
+
+
+class MyScrollArea(QScrollArea):
+    def __init__(self, mainWindow):
+        super().__init__()
+        self.mainWindow = mainWindow
+
     def keyPressEvent(self, e):
-        print(e.key())
-        if e.key() == Qt.Key_Return:
-            # self.mainWindow
-            pass
-        else:
-            pass
         return super().keyPressEvent(e)
+
 
 class GridWidget(QWidget):
     def __init__(self, mainWindow, path, pos, last_dir=False):
@@ -195,22 +212,6 @@ class GridWidget(QWidget):
         else:
             assert False, f'not expected type:{self.filetype}'
 
-    def get_pre_grid(self):
-        x,y = self.pos
-        y -= 1
-        if y == -1:
-            x -= 1
-            y = 0
-        return self.mainWindow.viewWidget.gridLayout.itemAtPosition(x, y).widget()
-
-    def get_next_grid(self):
-        x,y = self.pos
-        y += 1
-        if y == self.mainWindow.viewWidget.col:
-            x += 1
-            y = 0
-        return self.mainWindow.viewWidget.gridLayout.itemAtPosition(x, y).widget()
-
     def get_focus(self):
         palette = QPalette()
         palette.setColor(QPalette.WindowText, Qt.red)
@@ -236,7 +237,7 @@ class ImgWidget(QWidget):
         self.cur_path = path
 
         self.imgLabel = QLabel()
-        self.imgLabel.setFixedSize(600, 600)
+        self.imgLabel.setMinimumSize(600, 600)
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
 
@@ -251,8 +252,26 @@ class ImgWidget(QWidget):
             self.mainWindow.loadImg(self.cur_path)
 
     def setImg(self, img):
-        img = img.scaled(600, 600)
+        img_w,img_h = img.size().width(),img.size().height()
+        screen_w,screen_h = self.size().width(),self.size().height()
+        ratio_w,ratio_h = img_w/screen_w,img_h/screen_h
+        ratio = max(ratio_w,ratio_h)
+        new_w,new_h = round(img_w/ratio),round(img_h/ratio)
+        img = img.scaled(new_w, new_h)
         self.imgLabel.setPixmap(img)
 
     def mouseDoubleClickEvent(self, e):
         self.mainWindow.slotImgDoubleClick()
+
+    def keyPressEvent(self, e):
+        if self.mainWindow.viewWidget.currentWidget() is self \
+           and e.key() in [Qt.Key_Left,Qt.Key_Right]:
+            self.mainWindow.slotImgKeyPress(e)
+            return
+        else:
+            return super().keyPressEvent(e)
+
+    def resizeEvent(self, e):
+        if self.mainWindow.viewWidget.currentWidget() is self:
+            img = self.mainWindow.loadImg(self.cur_path)
+        return super().resizeEvent(e)

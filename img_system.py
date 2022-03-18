@@ -43,11 +43,6 @@ class ImgSystem(object):
         return self.img_pool.has(path)
 
     def hasTinyImg(self, path):
-        # if not self.tinyimg_pool.has(path):
-            # data = pickle.load(open(r'D:\newcode\python\project\图片管理器\jfv\data\tinyimg\D_照片_尬_b1a6eb4e68.pkl','rb'))
-            # for path,img_b in data.items():
-                # self.tinyimg_pool.add(path,img_b)
-
         return self.tinyimg_pool.has(path)
 
     def getImg_async(self, path, args, quickly=False):
@@ -138,8 +133,11 @@ class TinyImgReadThread(QThread):
         return os.path.join(self.tinyimg_filedir, f"{path}_{path_md5[:10]}.pkl")
 
     def make_tinyimg(self, img):
-        size = self.system.mainWindow.global_args['tinyimg_size']
-        tinyimg = img.resize((size,size))
+        max_hw = self.system.mainWindow.global_args['tinyimg_size']
+        w,h = img.size
+        ratio = max(w,h) / max_hw
+        w2,h2 = round(w/ratio),round(h/ratio)
+        tinyimg = img.resize((w2,h2))
         s = io.BytesIO()
         tinyimg.save(s,'jpeg')
         s.seek(0)
