@@ -108,10 +108,8 @@ class JFVWindow(QMainWindow):
     def loadTinyImg(self, grid, path):
         if self.img_system.hasTinyImg(path):
             img = self.img_system.getTinyImg(path)
-            print("k0:"+path)
             grid.imgLabel.setPixmap(img)
         else:
-            print("k:"+path)
             self.img_system.getTinyImg_async(path, (grid.pos[0],grid.pos[1],self.viewWidget.cur_cnt))
 
     def slotTinyImgLoaded(self, path, x, y, cnt):
@@ -191,9 +189,12 @@ class JFVWindow(QMainWindow):
         msgbox.exec_()
 
     def slotBackAction(self):
-        cur_path = self.filterWidget.pathLineEdit.text().strip()
-        base_path,_ = os.path.split(cur_path)
-        self.filterWidget.pathLineEdit.setText(base_path)
+        if self.filterWidget.tagLineEdit.text().strip() != "":
+            self.filterWidget.tagLineEdit.setText('')
+        else:
+            cur_path = self.filterWidget.pathLineEdit.text().strip()
+            base_path,_ = os.path.split(cur_path)
+            self.filterWidget.pathLineEdit.setText(base_path)
         self.slotFilterOK()
 
     def slotHomeAction(self):

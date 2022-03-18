@@ -238,6 +238,7 @@ class ImgWidget(QWidget):
 
         self.imgLabel = QLabel()
         self.imgLabel.setMinimumSize(600, 600)
+        self.imgLabel.setAlignment(Qt.AlignCenter)
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
 

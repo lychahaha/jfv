@@ -1,8 +1,8 @@
-import enum
 import os
 import pickle
 import copy
 import datetime
+import re
 
 op_chs = set(['(',')','|','&','!','=','#'])
 op_adv = {'|':1,'&':2,'!':4,'==':3,'!=':3,'#':0}
@@ -200,6 +200,17 @@ class TagSystem(object):
         if tagStr == "":
             return paths
 
+        if tagStr[0] == '{':
+            ix = tagStr.find('}')
+            assert ix!=-1, f'invalid tagStr({tagStr})'
+            paths = self._filterImageByPathExp(paths, tagStr[1:ix])
+            tagStr = tagStr[ix+1:]
+
+        if tagStr == "":
+            return paths
+
+        name2tag = {name:tag for tag,name in self.meta_tag2name.items()}
+
         tagStr = tagStr + '#'
         s1 = []
         s2 = []
@@ -227,7 +238,7 @@ class TagSystem(object):
                 iend = ibeg + 1
                 while iend < len(tagStr) and tagStr[iend] not in op_chs:
                     iend += 1
-                s2.append([0,tagStr[ibeg:iend]])
+                s2.append([0,name2tag[tagStr[ibeg:iend]]])
                 ibeg = iend
         s2.append([1,'#'])
 
@@ -240,14 +251,14 @@ class TagSystem(object):
                 else:
                     if item in ['!','#']:
                         num1 = s.pop()
-                        val1 = num1[0] in self.tag_dict[path] if isinstance(num1, list) else num1
+                        val1 = path in self.tag_dict and num1[0] in self.tag_dict[path] if isinstance(num1, list) else num1
                         s.append(op_func[item](val1))
                     else:
                         num2 = s.pop()
                         num1 = s.pop()
                         if item in ['==','!=']:
                             if isinstance(num1, list):
-                                if num1[0] in self.tag_dict[path]:
+                                if path in self.tag_dict and num1[0] in self.tag_dict[path]:
                                     val1 = self.tag_dict[path][num1[0]]
                                 else:
                                     val1 = None
@@ -255,11 +266,19 @@ class TagSystem(object):
                                 val1 = num1
                             val2 = num2[0]
                         else:
-                            val1 = num1[0] in self.tag_dict[path] if isinstance(num1, list) else num1
-                            val2 = num2[0] in self.tag_dict[path] if isinstance(num2, list) else num2
+                            val1 = path in self.tag_dict and num1[0] in self.tag_dict[path] if isinstance(num1, list) else num1
+                            val2 = path in self.tag_dict and num2[0] in self.tag_dict[path] if isinstance(num2, list) else num2
                         s.append(op_func[item](val1,val2))
 
             if s[0]:
                 ret_paths.append(path)
         
+        return ret_paths
+
+    def _filterImageByPathExp(self, paths, pathFilterStr):
+        ret_paths = []
+        for path in paths:
+            ma = re.search(pathFilterStr, path)
+            if ma is not None:
+                ret_paths.append(path)
         return ret_paths

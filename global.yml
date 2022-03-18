@@ -1,5 +1,5 @@
 img_poolsize: 50
-tinyimg_poolsize: 500
+tinyimg_poolsize: 5000
 
 tag_filedir: "data\\tag"
 tinyimg_filedir: "data\\tinyimg"
