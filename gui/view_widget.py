@@ -1,4 +1,7 @@
+from genericpath import isdir
 import os
+import re
+import functools
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -166,6 +169,8 @@ class ViewWidget(QStackedWidget):
         paths = [os.path.abspath(os.path.join(path,k)) for k in names] #换成绝对路径
         dir_paths = [k for k in paths if os.path.isdir(k)]
         file_paths = [k for k in paths if os.path.isfile(k)]
+        dir_paths = self._smartSort(dir_paths)
+        file_paths = self._smartSort(file_paths)
         # 设置GUI
         self.setCurrentWidget(self.dirWidget) #切换到目录/筛选模式
         self._clearGrids() #先清空grid表格
@@ -177,6 +182,7 @@ class ViewWidget(QStackedWidget):
         args
             paths:[str] 所有筛选出来的图片的路径列表
         '''
+        paths = self._smartSort(paths)
         self.setCurrentWidget(self.dirWidget)
         self._clearGrids()
         self._addGrids(paths)
@@ -253,6 +259,58 @@ class ViewWidget(QStackedWidget):
                 return item
         return None
 
+    def _smartSort(self, paths):
+        '''
+        智能排序
+        如果文件名字都是带规律的序号，那么按序号排序，而不是字典序
+        args:
+            paths:[str] 文件路径列表
+        ret
+            ret_paths:[str] 排序后的文件路径列表
+        '''
+        def cmp(s1,s2):
+            ibeg = 0
+            while ibeg < min(len(s1),len(s2)):
+                if s1[ibeg] != s2[ibeg]:
+                    break
+                ibeg += 1
+            if ibeg == min(len(s1),len(s2)):
+                if len(s1) == len(s2):
+                    return 0
+                if ibeg == len(s1):
+                    return -1
+                else:
+                    return 1
+
+            if not s1[ibeg].isdecimal() or not s2[ibeg].isdecimal():
+                if s1[ibeg] < s2[ibeg]:
+                    return -1
+                else:
+                    return 1
+            else:
+                def find_num(s, ibeg):
+                    while ibeg < len(s):
+                        if not s[ibeg].isdecimal():
+                            break
+                        ibeg += 1
+                    return ibeg
+                def find_pre_num(s, ibeg):
+                    while ibeg > -1:
+                        if not s[ibeg].isdecimal():
+                            break
+                        ibeg -= 1
+                    return ibeg + 1
+                ibeg = find_pre_num(s1, ibeg)
+                iend1 = find_num(s1, ibeg)
+                iend2 = find_num(s2, ibeg)
+                f1 = float(s1[ibeg:iend1])
+                f2 = float(s2[ibeg:iend2])
+                if f1 < f2:
+                    return -1
+                else:
+                    return 1
+
+        return sorted(paths, key=functools.cmp_to_key(cmp))
 
 class MyScrollArea(QScrollArea):
     '''
