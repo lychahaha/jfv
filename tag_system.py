@@ -33,14 +33,15 @@ TagSystem模块可独立于Qt/GUI使用
     2和3的筛选都写在了tagStr中，格式是{pathFilterStr}tagFilterStr
 
     pathFilterStr为正则表达式
-    tagFilterStr为逻辑表达式，支持与或非，以及等于不等（用于KV标签），例如：
+    tagFilterStr为逻辑表达式，支持与、或、非、存在（用`表示），以及等于不等（用于KV标签），例如：
         坐姿&逆光|!俯拍
         蹲姿&光圈==F1.4
+        `前景&侧身
 '''
 
 # 标签筛选用到的东西
-op_chs = set(['(',')','|','&','!','=','#']) #属于op的字符
-op_adv = {'|':1,'&':2,'!':4,'==':3,'!=':3,'#':0} #op优先级
+op_chs = set(['(',')','|','&','!','=','#','`']) #属于op的字符
+op_adv = {'|':1,'&':2,'!':4,'`':5,'==':3,'!=':3,'#':0} #op优先级
 op_func = { #op具体函数
     '|':lambda a,b : a or b,
     '&':lambda a,b : a and b,
@@ -48,6 +49,7 @@ op_func = { #op具体函数
     '==':lambda a,b : a==b,
     '!=':lambda a,b : a!=b,
     '#':lambda a : a,
+    '`':None,
 }
 
 class TagSystem(object):
@@ -410,7 +412,7 @@ class TagSystem(object):
                     while s1[-1][1] != '(':
                         s2.append(s1[-1])
                         s1.pop()
-                else: # & | ! == !=
+                else: # & | ! ` == !=
                     while len(s1)>0 and op_adv[s1[-1][1]]>=op_adv[op]:
                         s2.append(s1[-1])
                         s1.pop()
@@ -432,7 +434,11 @@ class TagSystem(object):
                 if code == 0: #标签或值
                     s.append([item]) #先用列表形式，因为不确定是标签还是值，要等实际运算时才能进行正确转换
                 else: #运算符
-                    if item in ['!','#']: #单目运算符
+                    if item == '`': #特判存在运算符
+                        num1 = s.pop()
+                        val1 = self._calc_exist(path, num1[0]) if isinstance(num1, list) else num1
+                        s.append(val1)
+                    elif item in ['!','#']: #单目运算符
                         num1 = s.pop()
                         val1 = path in self.tag_dict and num1[0] in self.tag_dict[path] if isinstance(num1, list) else num1 #如果是标签，则转为值
                         s.append(op_func[item](val1))
@@ -474,3 +480,28 @@ class TagSystem(object):
             if ma is not None:
                 ret_paths.append(path)
         return ret_paths
+
+    def _calc_exist(self, path, tag):
+        '''
+        标签筛选中的“存在”运算符的对应计算函数
+        枚举tag为根的子树中所有结点，假如存在一个结点为True，则返回True
+        args
+            path:str 待判断的图片
+            tag:int 目标tag
+        ret
+            bool “存在”运算的结果
+        '''
+        if path not in self.tag_dict:
+            return False
+
+        def dfs(cur_node):
+            if cur_node[0] in self.tag_dict[path]:
+                return True
+            for son_node in cur_node[1]:
+                if dfs(son_node):
+                    return True
+            return False
+        
+        node,fa_node = self._dfs_find(tag)
+        return dfs(node)
+        

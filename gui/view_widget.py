@@ -297,6 +297,11 @@ class ViewWidget(QStackedWidget):
             sp2 = paths_split[s2]
             for i in range(min(len(sp1),len(sp2))):
                 t1,t2 = sp1[i],sp2[i]
+                if t1[1] != t2[1]:
+                    if t1[1]:
+                        return -1
+                    else:
+                        return 1
                 if t1[1] and t2[1]:
                     f1,f2 = float(t1[0]),float(t2[0])
                     if f1<f2:
