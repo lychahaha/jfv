@@ -88,6 +88,15 @@ class TagSystem(object):
         else:
             return copy.deepcopy(self.tag_dict[path])
 
+    def getTagName(self, tag):
+        '''
+        获取元标签标签码对应的名字
+        args
+            tag:int 标签码
+        ret
+            str 名字
+        '''
+        return self.meta_tag2name[tag]
 
     def addMetaTag(self, tagName, fatherTag):
         '''

@@ -190,6 +190,14 @@ class JFVWindow(QMainWindow):
             # 否则，异步加载缩略图
             self.img_system.getTinyImg_async(path, (grid.pos[0],grid.pos[1],self.viewWidget.cur_cnt))
 
+    def setStatusInfo(self, s):
+        '''
+        设置状态栏的文字
+        args
+            s:str 要设置的文字
+        '''
+        self.statusLabel.setText(s)
+
     def slotTinyImgLoaded(self, path, x, y, cnt):
         '''
         缩略图异步加载完毕，响应tinyImgReady的槽

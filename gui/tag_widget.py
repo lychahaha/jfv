@@ -36,7 +36,6 @@ class TagWidget(QDockWidget):
         self.tagTree.customContextMenuRequested.connect(self.slotMenuPopup) #右键菜单信号连接
 
         self.remake_tree() #初始化tagTree，载入数据
-        self.tagTree.expandAll() #展开所有子项
 
         self.saveBtn = QPushButton('保存')
         self.resetBtn = QPushButton('重设')
@@ -83,9 +82,11 @@ class TagWidget(QDockWidget):
             elif not tag_state and tag in tagSet:
                 tagSet.pop(tag)
             tag_system.updateTag(path, tagSet)
-        #更新脏位相关的GUI部件状态
+        # 更新脏位相关的GUI部件状态
         self.saveBtn.setEnabled(True)
         self.resetBtn.setEnabled(True)
+        # 更新其他GUI部件
+        self.parent().infoWidget.fill_tag_info()
 
     def slotSave(self):
         '''
@@ -284,6 +285,7 @@ class TagWidget(QDockWidget):
         self.tag2item = {}
         self.tagTree.clear() #先全部清除
         dfs(tag_system.meta_tag_tree, 0)
+        self.tagTree.expandAll() #展开所有子项
         self.fill_value()
 
     def fill_value(self):

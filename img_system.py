@@ -189,8 +189,8 @@ class TinyImgReadThread(QThread):
                 if os.path.exists(pkl_dirpath): 
                     #如果该目录缓存过，则加载该文件即可
                     data = pickle.load(open(pkl_dirpath,'rb'))
-                    for path,img_b in data.items():
-                        self.pool.add(path,img_b)
+                    for img_path,img_b in data.items():
+                        self.pool.add(img_path,img_b)
                 else:
                     #否则，需要读入该目录的所有图片，然后生成缩略图，再保存成文件
                     names = os.listdir(dirpath)
@@ -273,6 +273,8 @@ class CachedPool(object):
         获取操作
         args
             k:str 图片路径
+        ret
+            v:bytes 图片二进制串
         '''
         assert k in self.k2v, f'no this key to get:{k}'
         self.lock.acquire()
@@ -286,5 +288,7 @@ class CachedPool(object):
         判断是否已缓存
         args
             k:str 图片路径
+        ret
+            bool 是否已缓存
         '''
         return k in self.k2v

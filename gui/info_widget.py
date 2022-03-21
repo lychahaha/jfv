@@ -8,8 +8,8 @@ from PyQt5.QtGui import *
 '''
 InfoWidget
 |-imgInfoWidget 
+|-tagInfoWidget
 |-fileInfoWidget（未实现）
-|-tagInfoWidget（未实现）
 (它们理论上是个list，但QTreeWidget能提供表头和多列)
 '''
 
@@ -20,7 +20,7 @@ class InfoWidget(QDockWidget):
         self.imgInfoWidget = QTreeWidget()
         self.imgInfoWidget.setColumnCount(2)
         self.imgInfoWidget.setHeaderHidden(True)
-        # 设置列表中的item
+        # 设置图片信息列表中的item
         self.imgInfoItems = []
         names = ['焦距','光圈','快门','ISO']
         for i in range(4):
@@ -28,18 +28,22 @@ class InfoWidget(QDockWidget):
             item.setText(0, names[i])
             self.imgInfoItems.append(item)
         self.imgInfoWidget.addTopLevelItems(self.imgInfoItems)    
+        # 创建标签信息列表
+        self.tagInfoWidget = QListWidget()
         # 布局
         self.content = QWidget()
         layout = QVBoxLayout(self.content)
         layout.addWidget(self.imgInfoWidget)
+        layout.addWidget(self.tagInfoWidget)
         self.setWidget(self.content)
     
     def fill_value(self):
         '''
         更新界面
-        （目前只有img_info实装了）    
+        （目前只有img_info和tag_info部分实装了）    
         '''
         self.fill_img_info()
+        self.fill_tag_info()
 
     def fill_img_info(self):
         '''
@@ -57,6 +61,25 @@ class InfoWidget(QDockWidget):
                 vals[i] = ""
         for i in range(4):
             self.imgInfoItems[i].setText(1, vals[i])
+
+    def fill_tag_info(self):
+        '''
+        更新tagInfo
+        '''
+        # 先清理
+        self.tagInfoWidget.clear()
+        # 判断焦点合法
+        img_paths = self._get_cur_focus_paths()
+        if img_paths is None or len(img_paths)>1:
+            return
+        # 设置GUI信息
+        tagSet = self.parent().tag_system.getTag(img_paths[0])
+        for tag,value in tagSet.items():
+            if value is not None:
+                continue
+            item = QListWidgetItem()
+            item.setText(self.parent().tag_system.getTagName(tag))
+            self.tagInfoWidget.addItem(item)
 
     def _get_cur_focus_paths(self):
         '''

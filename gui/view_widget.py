@@ -130,6 +130,7 @@ class ViewWidget(QStackedWidget):
         将显示模式从图片模式变成目录/筛选模式
         '''
         self.setCurrentWidget(self.dirWidget)
+        # todo: 差一个设置回来
 
     def slotImgKeyPress(self, e):
         '''
@@ -160,7 +161,7 @@ class ViewWidget(QStackedWidget):
 
     def _showDir(self, path):
         '''
-        切换到目录模式，并显示某目录的所有文件（该函数不负责其他界面的信息更新）
+        切换到目录模式，并显示某目录的所有文件（该函数不负责其他界面的信息更新，除了状态栏）
         args
             path:str 目录的路径
         '''
@@ -175,10 +176,11 @@ class ViewWidget(QStackedWidget):
         self.setCurrentWidget(self.dirWidget) #切换到目录/筛选模式
         self._clearGrids() #先清空grid表格
         self._addGrids(dir_paths+file_paths) #先加目录再加文件
+        self.parent().setStatusInfo(f'共{len(dir_paths)+len(file_paths)}项（包括{len(dir_paths)}个目录和{len(file_paths)}个文件）')
 
     def _showImgs(self, paths):
         '''
-        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新）
+        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新，除了状态栏）
         args
             paths:[str] 所有筛选出来的图片的路径列表
         '''
@@ -186,10 +188,11 @@ class ViewWidget(QStackedWidget):
         self.setCurrentWidget(self.dirWidget)
         self._clearGrids()
         self._addGrids(paths)
+        self.parent().setStatusInfo(f'共{len(paths)}张图片')
 
     def _showImg(self, grid):
         '''
-        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新）
+        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新，除了状态栏）
         args
             grid:GridWidget 要显示大图的缩略图GUI部件
         '''
@@ -200,6 +203,8 @@ class ViewWidget(QStackedWidget):
             g.lose_focus()
         grid.get_focus()
         self.cur_focus = [grid]
+        img_grids = [self.gridLayout.itemAt(i).widget() for i in range(self.gridLayout.count()) if self.gridLayout.itemAt(i).widget().filetype=='img']
+        self.parent().setStatusInfo(f'第{img_grids.index(grid)+1}/{len(img_grids)}张图片')
 
     def _clearGrids(self):
         '''
@@ -258,7 +263,6 @@ class ViewWidget(QStackedWidget):
             if item.filetype == 'img':
                 return item
         return None
-
     def _smartSort(self, paths):
         '''
         智能排序
@@ -268,49 +272,63 @@ class ViewWidget(QStackedWidget):
         ret
             ret_paths:[str] 排序后的文件路径列表
         '''
-        def cmp(s1,s2):
-            ibeg = 0
-            while ibeg < min(len(s1),len(s2)):
-                if s1[ibeg] != s2[ibeg]:
+        paths_split = {}
+
+        def find_num(s, ibeg):
+            dot_used = False
+            while ibeg < len(s):
+                if not s[ibeg].isdecimal():
+                    if s[ibeg]=='.' and not dot_used:
+                        dot_used = True
+                    else:
+                        break
+                ibeg += 1
+            return ibeg
+
+        def find_not_num(s, ibeg):
+            while ibeg < len(s):
+                if s[ibeg].isdecimal():
                     break
                 ibeg += 1
-            if ibeg == min(len(s1),len(s2)):
-                if len(s1) == len(s2):
-                    return 0
-                if ibeg == len(s1):
+            return ibeg
+
+        def cmp(s1, s2):
+            sp1 = paths_split[s1]
+            sp2 = paths_split[s2]
+            for i in range(min(len(sp1),len(sp2))):
+                t1,t2 = sp1[i],sp2[i]
+                if t1[1] and t2[1]:
+                    f1,f2 = float(t1[0]),float(t2[0])
+                    if f1<f2:
+                        return -1
+                    elif f1>f2:
+                        return 1
+                if t1[0]<t2[0]:
+                    return -1
+                elif t1[0]>t2[0]:
+                    return 1
+            if len(sp1)==len(sp2):
+                return 0
+            else:
+                if len(sp1) < len(sp2):
                     return -1
                 else:
                     return 1
 
-            if not s1[ibeg].isdecimal() or not s2[ibeg].isdecimal():
-                if s1[ibeg] < s2[ibeg]:
-                    return -1
+        for path in paths:
+            paths_split[path] = []
+            ibeg = 0
+            while ibeg < len(path):
+                if path[ibeg].isdecimal():
+                    iend = find_num(path, ibeg)
+                    paths_split[path].append([path[ibeg:iend],True])
                 else:
-                    return 1
-            else:
-                def find_num(s, ibeg):
-                    while ibeg < len(s):
-                        if not s[ibeg].isdecimal():
-                            break
-                        ibeg += 1
-                    return ibeg
-                def find_pre_num(s, ibeg):
-                    while ibeg > -1:
-                        if not s[ibeg].isdecimal():
-                            break
-                        ibeg -= 1
-                    return ibeg + 1
-                ibeg = find_pre_num(s1, ibeg)
-                iend1 = find_num(s1, ibeg)
-                iend2 = find_num(s2, ibeg)
-                f1 = float(s1[ibeg:iend1])
-                f2 = float(s2[ibeg:iend2])
-                if f1 < f2:
-                    return -1
-                else:
-                    return 1
+                    iend = find_not_num(path, ibeg)
+                    paths_split[path].append([path[ibeg:iend],False])
+                ibeg = iend
 
         return sorted(paths, key=functools.cmp_to_key(cmp))
+
 
 class MyScrollArea(QScrollArea):
     '''
@@ -349,6 +367,7 @@ class GridWidget(QWidget):
         self.imgLabel = QLabel('图片')
         self.imgLabel.setFixedSize(250,250)
         self.nameLabel = QLabel(self.name)
+        # self.nameLabel = QLabel(self.path) #debug才用这个
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
         self.layout.addWidget(self.nameLabel)
@@ -440,6 +459,14 @@ class ImgWidget(QWidget):
         new_w,new_h = round(img_w/ratio),round(img_h/ratio)
         img = img.scaled(new_w, new_h)
         self.imgLabel.setPixmap(img)
+
+    def mousePressEvent(self, e):
+        '''
+        鼠标点击事件
+        鼠标点击，让图片获得焦点
+        '''
+        self.setFocus()
+        return super().mousePressEvent(e)
 
     def mouseDoubleClickEvent(self, e):
         '''
