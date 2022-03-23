@@ -29,7 +29,8 @@ class InfoWidget(QDockWidget):
             self.imgInfoItems.append(item)
         self.imgInfoWidget.addTopLevelItems(self.imgInfoItems)    
         # 创建标签信息列表
-        self.tagInfoWidget = QListWidget()
+        self.tagInfoWidget = QTextEdit()
+        self.tagInfoWidget.setEnabled(False)
         # 布局
         self.content = QWidget()
         layout = QVBoxLayout(self.content)
@@ -74,12 +75,12 @@ class InfoWidget(QDockWidget):
             return
         # 设置GUI信息
         tagSet = self.parent().tag_system.getTag(img_paths[0])
+        tags = []
         for tag,value in tagSet.items():
             if value is not None:
                 continue
-            item = QListWidgetItem()
-            item.setText(self.parent().tag_system.getTagName(tag))
-            self.tagInfoWidget.addItem(item)
+            tags.append(self.parent().tag_system.getTagName(tag))
+        self.tagInfoWidget.setText(','.join(tags))    
 
     def _get_cur_focus_paths(self):
         '''

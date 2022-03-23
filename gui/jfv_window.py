@@ -113,11 +113,15 @@ class JFVWindow(QMainWindow):
         self.helpAction.triggered.connect(self.slotHelpAction)
         self.optionsAction = QAction('首选项', self)
         self.optionsAction.triggered.connect(self.slotOptionsAction)
+        self.tagCntAction = QAction('标签统计', self)
+        self.tagCntAction.triggered.connect(self.slotTagCntAction)
 
     def createMenu(self):
         '''
         创建菜单Menu
         '''
+        self.funcMenu = self.menuBar().addMenu('功能')
+        self.funcMenu.addAction(self.tagCntAction)
         self.helpMenu = self.menuBar().addMenu('帮助')
         self.helpMenu.addAction(self.aboutAction)
         self.helpMenu.addAction(self.helpAction)
@@ -383,6 +387,51 @@ class JFVWindow(QMainWindow):
         打开全局参数文件。
         '''
         subprocess.Popen(f'notepad {os.path.join(os.getcwd(),"global.yml")}')
+
+    def slotTagCntAction(self):
+        '''
+        tagCntAction的槽。
+        打开标签统计消息框。
+        '''
+        cur_path = self.filterWidget.pathLineEdit.text().strip()
+
+        # 创建GUI树
+        tree = QTreeWidget()
+        header = QTreeWidgetItem()
+        header.setText(0, '标签')
+        header.setText(1, '数量')
+        header.setText(2, '子树总数')
+        tree.setHeaderItem(header)
+
+        def dfs(cur_node, deep, fa_item):
+            tag = cur_node[0]
+            cur_cnt = self.tag_system.calc_tag_cnt(cur_path, tag)
+            if deep == 0:
+                item = QTreeWidgetItem()
+                tree.addTopLevelItem(item)
+            else:
+                item = QTreeWidgetItem(fa_item)
+            item.setText(0, self.tag_system.getTagName(tag))
+            item.setText(1, str(cur_cnt))
+            son_cnt = 0
+            for son_node in cur_node[1]:
+                son_cnt += dfs(son_node, deep+1, item)
+            if len(cur_node[1]) != 0:
+                item.setText(2, str(cur_cnt+son_cnt))
+            return cur_cnt+son_cnt
+        
+        dfs(self.tag_system.meta_tag_tree, 0, None)
+        tree.expandAll()
+        tree.setMinimumSize(400,400)
+        tree.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+        # 创建消息窗口
+        msgbox = QDialog()
+        msgbox.setWindowTitle('标签统计')
+        layout = QVBoxLayout(msgbox)
+        layout.addWidget(QLabel(f'路径:{cur_path}'))
+        layout.addWidget(tree)
+        msgbox.exec_()
 
     def closeEvent(self, e):
         '''

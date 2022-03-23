@@ -504,4 +504,20 @@ class TagSystem(object):
         
         node,fa_node = self._dfs_find(tag)
         return dfs(node)
-        
+    
+    def calc_tag_cnt(self, rootpath, tag):
+        '''
+        计算某个目录下的所有图片中出现某个tag的数量
+        args
+            rootpath:str 目录路径
+            tag:int 标签码
+        ret
+            int 出现该tag的数量
+        '''
+        cnt = 0
+        for path,tagSet in self.tag_dict.items():
+            if rootpath not in path:
+                continue
+            if tag in tagSet:
+                cnt += 1
+        return cnt
