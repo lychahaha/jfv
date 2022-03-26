@@ -1,17 +1,35 @@
+# 绝大部分路径为相对路径
+
+# ImgSystem相关
+## 缓存池的最大大小
 img_poolsize: 50
 tinyimg_poolsize: 5000
-
-tag_filedir: "data\\tag"
+# 缩略图大小
+tinyimg_size: 250
+## 存放缩略图数据文件的目录
 tinyimg_filedir: "data\\tinyimg"
-img_default_filedir: "D:\\照片"
+# 识别为图片的后缀
 img_extnames: [".jpg",".jpeg",".png",'.JPG','.JPEG','.PNG']
-fastfunc_filepath: "data\\fastfunc.pkl"
 
+# FilterWidget相关
+## 主页
+img_default_filedir: "D:\\照片"
+
+# TagWidget相关
+# 存放标签数据文件的目录
+tag_filedir: "data\\tag"
+
+# FastFuncWidget相关
+# 存放历史和收藏夹的数据文件路径
+fastfunc_filepath: "data\\fastfunc.pkl"
+# 最大历史项数
+max_history_size: 20
+
+# 资源相关
+## 各种icon的路径
 dir_icon_path: "resource\\dir.ico"
 file_icon_path: "resource\\file.ico"
 img_icon_path: "resource\\img.ico"
 
-tinyimg_size: 250
-max_history_size: 20
-
+# debug模式
 debug: True

@@ -1,23 +1,41 @@
+from genericpath import isdir
 import os
+import re
+import functools
+import subprocess
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 
+'''
+ViewWidget
+|-dirWidget
+    |-GridLayout
+        |-GridWidget
+        |-GridWidget
+        |-...
+|-imgWidget
+
+ViewWidget的三种显示模式：
+1. 目录模式（显示目录的所有文件）
+2. 筛选模式（显示筛选结果）
+3. 图片模式（显示大图）
+
+'''
 
 class ViewWidget(QStackedWidget):
     def __init__(self, parent):
         super().__init__(parent)
-
-        self.col = 2
-        self.cur_cnt = 0
-        self.cur_focus = []
-
+        # 重要变量
+        self.col = 2 #grid表的列数
+        self.cur_cnt = 0 #页面计数器（每当刷新页面会+1，用来判断缩略图是否还要加载）
+        self.cur_focus = [] #当前焦点grid列表（十分重要，其他界面都依赖它更新参数）
+        # 创建GUI部件
         self.dirWidget = MyScrollArea(self.parent())
-        self.dirWidget.setWidgetResizable(True)
+        self.dirWidget.setWidgetResizable(True) #设置这个才能动态resize
         self.contentWidget = QWidget()
         self.gridLayout = QGridLayout(self.contentWidget)
-        self.gridLayout.addWidget(GridWidget(self.parent(), r'D:\照片', (0,0)), 0, 0)
         self.dirWidget.setWidget(self.contentWidget)
 
         self.imgWidget = ImgWidget(self.parent())
@@ -26,12 +44,23 @@ class ViewWidget(QStackedWidget):
         self.addWidget(self.imgWidget)
 
     def slotGridPress(self, grid, ctrl, shift):
+        '''
+        grid被点击的假槽（信号先发到顶层窗口，然后顶层窗口调用该函数）
+        args
+            grid:GridWidget 被点击的grid
+            ctrl:bool 是否按下了ctrl
+            shift:bool 是否按下了shift
+        '''
         if not ctrl and not shift:
+            # 单纯的点击
+            # 去掉之前所有焦点，点击的grid获得焦点
             for g in self.cur_focus:
                 g.lose_focus()
             self.cur_focus = [grid]
             grid.get_focus()
         elif ctrl and not shift:
+            # 带ctrl的点击
+            # 只改变点击的grid是否在焦点列表里的状态
             if grid in self.cur_focus:
                 grid.lose_focus()
                 self.cur_focus.remove(grid)
@@ -39,6 +68,9 @@ class ViewWidget(QStackedWidget):
                 grid.get_focus()
                 self.cur_focus.append(grid)
         elif not ctrl and shift:
+            # 带shift的点击
+            # 去掉之前所有焦点，上一次和本次的点击的grid之间的grid全部获得焦点
+            # 如果是第一次点击，则假设上一次点击的是第0号grid
             for g in self.cur_focus:
                 g.lose_focus()
             if len(self.cur_focus) == 0:
@@ -66,6 +98,8 @@ class ViewWidget(QStackedWidget):
             if pbeg != grid.pos:
                 self.cur_focus = self.cur_focus[::-1]
         elif ctrl and shift:
+            # 同时带ctrl和shift的点击
+            # 与只带shift点击的差别只在，不去掉之前的所有焦点
             if len(self.cur_focus) == 0:
                 last_grid = self.gridLayout.itemAtPosition(0,0).widget()
             else:
@@ -92,53 +126,103 @@ class ViewWidget(QStackedWidget):
                 self.cur_focus = self.cur_focus[::-1]
 
     def slotImgDoubleClick(self):
+        '''
+        图片双击的假槽（信号先发到顶层窗口，然后顶层窗口调用该函数）
+        将显示模式从图片模式变成目录/筛选模式
+        '''
         self.setCurrentWidget(self.dirWidget)
+        # todo: 差一个设置回来
 
     def slotImgKeyPress(self, e):
+        '''
+        图片模式时键盘点击的假槽（信号先发到顶层窗口，然后顶层窗口调用该函数）
+        目前只实现左右键，功能是切换上一张/下一张图片（注意要跳过文件和目录）
+        如果没有上一张/下一张，则不操作
+        args
+            e:QKeyEvent 键盘事件
+        '''
+        # 计算上一张/下一张图片
         assert e.key() in [Qt.Key_Left, Qt.Key_Right], f'unexpected key({e.key()})'
         is_left = e.key() == Qt.Key_Left
         old_item = self.cur_focus[0]
         old_ix = self.gridLayout.indexOf(old_item)
         new_item = self._findPreImgGrid(old_ix) if is_left else self._findNextImgGrid(old_ix)
-        if new_item is None:
+        # 判断和切换
+        if new_item is None: #没有上一张/下一张，则不操作
             return
         self._showImg(new_item)
 
     def printInfo(self):
+        '''
+        打印相关信息（debug用）
+        '''
         print('focus:', [os.path.split(g.path)[1] for g in self.cur_focus])
         print(f'cur_cnt:{self.cur_cnt}')
         print(f'img_path:{os.path.split(self.imgWidget.cur_path)[1]}')
 
     def _showDir(self, path):
-        names = ['..'] + os.listdir(path)
-        paths = [os.path.abspath(os.path.join(path,k)) for k in names]
+        '''
+        切换到目录模式，并显示某目录的所有文件（该函数不负责其他界面的信息更新，除了状态栏）
+        args
+            path:str 目录的路径
+        '''
+        # 获取目录和文件列表
+        names = ['..'] + os.listdir(path) #加入返回上级的目录
+        paths = [os.path.abspath(os.path.join(path,k)) for k in names] #换成绝对路径
         dir_paths = [k for k in paths if os.path.isdir(k)]
         file_paths = [k for k in paths if os.path.isfile(k)]
-
-        self.setCurrentWidget(self.dirWidget)
-        self._clearGrids()
-        self._addGrids(dir_paths+file_paths)
+        dir_paths = self._smartSort(dir_paths)
+        file_paths = self._smartSort(file_paths)
+        # 设置GUI
+        self.setCurrentWidget(self.dirWidget) #切换到目录/筛选模式
+        self._clearGrids() #先清空grid表格
+        self._addGrids(dir_paths+file_paths) #先加目录再加文件
+        self.parent().setStatusInfo(f'共{len(dir_paths)+len(file_paths)}项（包括{len(dir_paths)}个目录和{len(file_paths)}个文件）')
 
     def _showImgs(self, paths):
+        '''
+        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新，除了状态栏）
+        args
+            paths:[str] 所有筛选出来的图片的路径列表
+        '''
+        paths = self._smartSort(paths)
         self.setCurrentWidget(self.dirWidget)
         self._clearGrids()
         self._addGrids(paths)
+        self.parent().setStatusInfo(f'共{len(paths)}张图片')
 
     def _showImg(self, grid):
+        '''
+        切换到筛选模式，显示所有图片（该函数不负责其他界面的信息更新，除了状态栏）
+        args
+            grid:GridWidget 要显示大图的缩略图GUI部件
+        '''
         self.setCurrentWidget(self.imgWidget)
         self.imgWidget.reset_img(grid.path)
+        # 要设置焦点
         for g in self.cur_focus:
             g.lose_focus()
         grid.get_focus()
         self.cur_focus = [grid]
+        img_grids = [self.gridLayout.itemAt(i).widget() for i in range(self.gridLayout.count()) if self.gridLayout.itemAt(i).widget().filetype=='img']
+        self.parent().setStatusInfo(f'第{img_grids.index(grid)+1}/{len(img_grids)}张图片')
 
     def _clearGrids(self):
+        '''
+        清空grid表格
+        包括清空GUI项，和更新变量
+        '''
         for i in range(self.gridLayout.count()):
             self.gridLayout.itemAt(i).widget().deleteLater()
         self.cur_cnt += 1
         self.cur_focus = []
 
     def _addGrids(self, paths):
+        '''
+        添加grid项（一次刷新只能调用一次）
+        args
+            paths:[str] 所有要显示的文件/图片的路径列表
+        '''
         pos = [0,0]
         for i,path in enumerate(paths):
             if i == 0 and os.path.isdir(path):
@@ -152,6 +236,14 @@ class ViewWidget(QStackedWidget):
                 pos[1] = 0
 
     def _findNextImgGrid(self, ix):
+        '''
+        寻找下一个图片grid（用于图片模式时切换下一张图片）
+        没有下一张时返回None
+        args
+            ix:int 目标在gridLayout的ix
+        ret
+            item:GridWidget|None 目标的下一张图片对应的缩略图grid
+        '''
         for i in range(ix+1, self.gridLayout.count()):
             item = self.gridLayout.itemAt(i).widget()
             if item.filetype == 'img':
@@ -159,14 +251,110 @@ class ViewWidget(QStackedWidget):
         return None
 
     def _findPreImgGrid(self, ix):
+        '''
+        寻找上一个图片grid（用于图片模式时切换上一张图片）
+        没有上一张时返回None
+        args
+            ix:int 目标在gridLayout的ix
+        ret
+            item:GridWidget|None 目标的上一张图片对应的缩略图grid
+        '''
         for i in range(ix-1, -1, -1):
             item = self.gridLayout.itemAt(i).widget()
             if item.filetype == 'img':
                 return item
         return None
+    def _smartSort(self, paths):
+        '''
+        智能排序
+        如果文件名字都是带规律的序号，那么按序号排序，而不是字典序
+        args:
+            paths:[str] 文件路径列表
+        ret
+            ret_paths:[str] 排序后的文件路径列表
+        '''
+        paths_split = {}
 
+        def find_num(s, ibeg):
+            dot_used = False
+            while ibeg < len(s):
+                if not s[ibeg].isdecimal():
+                    if s[ibeg]=='.' and not dot_used:
+                        dot_used = True
+                    else:
+                        break
+                ibeg += 1
+            return ibeg
+
+        def find_not_num(s, ibeg):
+            while ibeg < len(s):
+                if s[ibeg].isdecimal():
+                    break
+                ibeg += 1
+            return ibeg
+
+        def cmp(s1, s2):
+            sp1 = paths_split[s1]
+            sp2 = paths_split[s2]
+            for i in range(min(len(sp1),len(sp2))):
+                t1,t2 = sp1[i],sp2[i]
+                if t1[1] != t2[1]:
+                    if t1[1]:
+                        return -1
+                    else:
+                        return 1
+                if t1[1] and t2[1]:
+                    f1,f2 = float(t1[0]),float(t2[0])
+                    if f1<f2:
+                        return -1
+                    elif f1>f2:
+                        return 1
+                if t1[0]<t2[0]:
+                    return -1
+                elif t1[0]>t2[0]:
+                    return 1
+            if len(sp1)==len(sp2):
+                return 0
+            else:
+                if len(sp1) < len(sp2):
+                    return -1
+                else:
+                    return 1
+
+        for path in paths:
+            paths_split[path] = []
+            ibeg = 0
+            while ibeg < len(path):
+                if path[ibeg].isdecimal():
+                    iend = find_num(path, ibeg)
+                    paths_split[path].append([path[ibeg:iend],True])
+                else:
+                    iend = find_not_num(path, ibeg)
+                    paths_split[path].append([path[ibeg:iend],False])
+                ibeg = iend
+
+        return sorted(paths, key=functools.cmp_to_key(cmp))
+
+    @property
+    def cur_mode(self):
+        '''
+        当前模式
+        ret:str(dir|filter|img)
+        '''
+        if self.currentWidget() == self.dirWidget:
+            if self.gridLayout.itemAt(0).widget().name == '..':
+                return 'dir'
+            else:
+                return 'filter'
+        elif self.currentWidget() == self.imgWidget:
+            return 'img'
+        else:
+            raise Exception(f'unexpected current widget({self.currentWidget()})')
 
 class MyScrollArea(QScrollArea):
+    '''
+    目录/筛选模式时，实现键盘方向键要用到(未实现)
+    '''
     def __init__(self, mainWindow):
         super().__init__()
         self.mainWindow = mainWindow
@@ -178,31 +366,33 @@ class MyScrollArea(QScrollArea):
 class GridWidget(QWidget):
     def __init__(self, mainWindow, path, pos, last_dir=False):
         super().__init__()
-        self.mainWindow = mainWindow
-        self.path = path
-        self.pos = pos
+        self.mainWindow = mainWindow #顶层窗口
+        self.path = path #当前grid代表的图片路径
+        self.pos = pos #当前grid所在的gridLayout的坐标
 
         # self.setFixedSize(300,250)
 
+        # 特判上一级目录的名字
         if last_dir:
             self.name = '..'
         else:
             _,self.name = os.path.split(self.path)
-
+        # 当前grid的文件类型
         if os.path.isdir(self.path):
             self.filetype = 'dir'
         elif os.path.splitext(self.path)[1] in self.mainWindow.global_args['img_extnames']:
             self.filetype = 'img'
         else:
             self.filetype = 'file'
-
+        # 设置GUI项
         self.imgLabel = QLabel('图片')
         self.imgLabel.setFixedSize(250,250)
         self.nameLabel = QLabel(self.name)
+        # self.nameLabel = QLabel(self.path) #debug才用这个
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
         self.layout.addWidget(self.nameLabel)
-
+        # 设置显示的图片
         if self.filetype == 'dir':
             self.imgLabel.setPixmap(self.mainWindow.res['dir_icon'])
         elif self.filetype == 'file':
@@ -212,20 +402,82 @@ class GridWidget(QWidget):
         else:
             assert False, f'not expected type:{self.filetype}'
 
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.slotMenuPopup)
+
+    def slotMenuPopup(self, pos):
+        '''
+        右键菜单槽函数
+        args
+            pos:QSize 右击时的坐标
+        '''
+        openAction = QAction('打开')
+        openDirAction = QAction('打开所在文件夹')
+        openRMAction = QAction('在资源管理器打开')
+
+        menu = QMenu()
+        menu.addAction(openAction)
+        menu.addAction(openDirAction)
+        menu.addAction(openRMAction)
+
+        cur_mode = self.mainWindow.viewWidget.cur_mode
+        assert cur_mode in ['dir','filter'], f'unexpected mode({cur_mode})'
+        if cur_mode == 'dir':
+            if self.filetype == 'dir':
+                openDirAction.setEnabled(False)
+            elif self.filetype == 'file':
+                openAction.setEnabled(False)
+                openDirAction.setEnabled(False)
+            elif self.filetype == 'img':
+                openDirAction.setEnabled(False)
+            else:
+                assert False, f'unexpected filetype({self.filetype})'
+        else:
+            pass
+
+        action = menu.exec_(self.mapToGlobal(pos))
+
+        if action == openAction:
+            self.mainWindow.slotGridDoubleClick(self)
+        elif action == openDirAction:
+            path = os.path.dirname(self.path)
+            self.mainWindow.filterWidget.pathLineEdit.setText(path)
+            self.mainWindow.filterWidget.tagLineEdit.setText('')
+            self.mainWindow.slotFilterOK()
+        elif action == openRMAction:
+            if self.name != '..':
+                path = os.path.dirname(self.path)
+            else:
+                path = self.mainWindow.filterWidget.pathLineEdit.text().strip()
+            cmd = f'explorer {path}'
+            subprocess.Popen(cmd)
+
     def get_focus(self):
+        '''
+        获得焦点（只设置GUI样式）
+        '''
         palette = QPalette()
         palette.setColor(QPalette.WindowText, Qt.red)
         self.nameLabel.setPalette(palette)
 
     def lose_focus(self):
+        '''
+        失去焦点（只设置GUI样式）
+        '''
         palette = QPalette()
         palette.setColor(QPalette.WindowText, Qt.black)
         self.nameLabel.setPalette(palette)
 
     def mouseDoubleClickEvent(self, e):
+        '''
+        双击事件，调用顶层窗口的假槽
+        '''
         self.mainWindow.slotGridDoubleClick(self)
 
     def mousePressEvent(self, e):
+        '''
+        点击事件，调用顶层窗口的假槽
+        '''
         self.mainWindow.slotGridPress(self)
 
 
@@ -233,19 +485,31 @@ class ImgWidget(QWidget):
     def __init__(self, mainWindow, path=None):
         super().__init__()
 
-        self.mainWindow = mainWindow
-        self.cur_path = path
-
+        self.mainWindow = mainWindow #顶层窗口
+        self.cur_path = path #当前显示图片的路径
+        # 设置GUI
         self.imgLabel = QLabel()
         self.imgLabel.setMinimumSize(600, 600)
-        self.imgLabel.setAlignment(Qt.AlignCenter)
+        self.imgLabel.setAlignment(Qt.AlignCenter) #居中
         self.layout = QVBoxLayout(self)
         self.layout.addWidget(self.imgLabel)
-
+        # 没有下面会有bug（原因未知）
         self.cur_path = "D:\\照片\\尬\\IMG_20211226_120802.jpg"
         self.reset_img(self.cur_path)
 
     def reset_img(self, path):
+        '''
+        设置图片
+        它会调用顶层窗口的函数来异步/同步获取图片，最后通过setImg真正设置
+        整条调用路径是：
+            1. reset_img（设置路径）
+            2. JFVWindow.loadImg（桥接GUI与ImgSystem）
+            3. ImgSystem.getImg/getImg_async（获取/加载图片）
+            4. JFVWindow.slotImgLoaded（异步回调）
+            5. setImg（GUI设置）
+        args
+            path:str 图片路径
+        '''
         self.cur_path = path
         if self.cur_path is None:
             self.imgLabel.setText('')
@@ -253,6 +517,12 @@ class ImgWidget(QWidget):
             self.mainWindow.loadImg(self.cur_path)
 
     def setImg(self, img):
+        '''
+        reset_img的最后一步
+        先resize成最大的大小，再设置
+        args
+            img:QPixmap 图片
+        '''
         img_w,img_h = img.size().width(),img.size().height()
         screen_w,screen_h = self.size().width(),self.size().height()
         ratio_w,ratio_h = img_w/screen_w,img_h/screen_h
@@ -261,10 +531,26 @@ class ImgWidget(QWidget):
         img = img.scaled(new_w, new_h)
         self.imgLabel.setPixmap(img)
 
+    def mousePressEvent(self, e):
+        '''
+        鼠标点击事件
+        鼠标点击，让图片获得焦点
+        '''
+        self.setFocus()
+        return super().mousePressEvent(e)
+
     def mouseDoubleClickEvent(self, e):
+        '''
+        双击事件
+        调用顶层窗口的假槽处理
+        '''
         self.mainWindow.slotImgDoubleClick()
 
     def keyPressEvent(self, e):
+        '''
+        键盘点击事件
+        先判断合法性，再调用顶层窗口的假槽处理
+        '''
         if self.mainWindow.viewWidget.currentWidget() is self \
            and e.key() in [Qt.Key_Left,Qt.Key_Right]:
             self.mainWindow.slotImgKeyPress(e)
@@ -273,6 +559,11 @@ class ImgWidget(QWidget):
             return super().keyPressEvent(e)
 
     def resizeEvent(self, e):
+        '''
+        resize事件，重新载入
+        args
+            e:QEvent
+        '''
         if self.mainWindow.viewWidget.currentWidget() is self:
-            img = self.mainWindow.loadImg(self.cur_path)
+            self.mainWindow.loadImg(self.cur_path)
         return super().resizeEvent(e)

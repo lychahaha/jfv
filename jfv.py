@@ -17,6 +17,9 @@ class JFV(object):
         self.app.exec_()
 
     def close(self):
+        '''
+        关闭线程，保存数据
+        '''
         self.gui.tag_system.auto_save()
         self.gui.img_system.close()
         self.gui.fastFuncWidget.saveData()

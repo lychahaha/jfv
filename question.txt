@@ -1,5 +1,6 @@
 缩略图异步加载完，但是widget已经销毁
 
-tag 加auto save，多种路径
 view widget滚动到下面，打开其他路径时的复位问题
 key实装
+
+显示某个tag有多少张图片
