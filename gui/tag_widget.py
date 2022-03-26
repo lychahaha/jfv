@@ -54,6 +54,7 @@ class TagWidget(QDockWidget):
         self.tagTree.itemCheckStateChanged.connect(self.slotItemCheckStateChanged) #tagtree的checkbox修改的信号连接
         self.saveBtn.clicked.connect(self.slotSave)
         self.resetBtn.clicked.connect(self.slotReset)
+        self.tagTree.itemDoubleClicked.connect(self.slotItemDoubleClicked)
 
     def slotItemCheckStateChanged(self, item):
         '''
@@ -87,6 +88,16 @@ class TagWidget(QDockWidget):
         self.resetBtn.setEnabled(True)
         # 更新其他GUI部件
         self.parent().infoWidget.fill_tag_info()
+
+    def slotItemDoubleClicked(self, item):
+        '''
+        双击tag时的槽
+        会将对应的tag名字输入到filterWidget的标签筛选串里
+        args
+            item:TagTreeItem 被双击的tag
+        '''
+        lineedit = self.parent().filterWidget.tagLineEdit
+        lineedit.setText(lineedit.text().strip()+item.text(0))
 
     def slotSave(self):
         '''

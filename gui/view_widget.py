@@ -2,6 +2,7 @@ from genericpath import isdir
 import os
 import re
 import functools
+import subprocess
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
@@ -334,6 +335,21 @@ class ViewWidget(QStackedWidget):
 
         return sorted(paths, key=functools.cmp_to_key(cmp))
 
+    @property
+    def cur_mode(self):
+        '''
+        当前模式
+        ret:str(dir|filter|img)
+        '''
+        if self.currentWidget() == self.dirWidget:
+            if self.gridLayout.itemAt(0).widget().name == '..':
+                return 'dir'
+            else:
+                return 'filter'
+        elif self.currentWidget() == self.imgWidget:
+            return 'img'
+        else:
+            raise Exception(f'unexpected current widget({self.currentWidget()})')
 
 class MyScrollArea(QScrollArea):
     '''
@@ -385,6 +401,56 @@ class GridWidget(QWidget):
             self.mainWindow.loadTinyImg(self, self.path)
         else:
             assert False, f'not expected type:{self.filetype}'
+
+        self.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.slotMenuPopup)
+
+    def slotMenuPopup(self, pos):
+        '''
+        右键菜单槽函数
+        args
+            pos:QSize 右击时的坐标
+        '''
+        openAction = QAction('打开')
+        openDirAction = QAction('打开所在文件夹')
+        openRMAction = QAction('在资源管理器打开')
+
+        menu = QMenu()
+        menu.addAction(openAction)
+        menu.addAction(openDirAction)
+        menu.addAction(openRMAction)
+
+        cur_mode = self.mainWindow.viewWidget.cur_mode
+        assert cur_mode in ['dir','filter'], f'unexpected mode({cur_mode})'
+        if cur_mode == 'dir':
+            if self.filetype == 'dir':
+                openDirAction.setEnabled(False)
+            elif self.filetype == 'file':
+                openAction.setEnabled(False)
+                openDirAction.setEnabled(False)
+            elif self.filetype == 'img':
+                openDirAction.setEnabled(False)
+            else:
+                assert False, f'unexpected filetype({self.filetype})'
+        else:
+            pass
+
+        action = menu.exec_(self.mapToGlobal(pos))
+
+        if action == openAction:
+            self.mainWindow.slotGridDoubleClick(self)
+        elif action == openDirAction:
+            path = os.path.dirname(self.path)
+            self.mainWindow.filterWidget.pathLineEdit.setText(path)
+            self.mainWindow.filterWidget.tagLineEdit.setText('')
+            self.mainWindow.slotFilterOK()
+        elif action == openRMAction:
+            if self.name != '..':
+                path = os.path.dirname(self.path)
+            else:
+                path = self.mainWindow.filterWidget.pathLineEdit.text().strip()
+            cmd = f'explorer {path}'
+            subprocess.Popen(cmd)
 
     def get_focus(self):
         '''

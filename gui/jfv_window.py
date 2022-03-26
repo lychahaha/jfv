@@ -158,6 +158,10 @@ class JFVWindow(QMainWindow):
         self.fastFuncWidget = FastFuncWidget('快速功能区', self)
         self.addDockWidget(Qt.LeftDockWidgetArea, self.fastFuncWidget)
 
+        # dockwidget设定
+        self.setCorner(Qt.TopLeftCorner, Qt.LeftDockWidgetArea)
+        self.setCorner(Qt.TopRightCorner, Qt.RightDockWidgetArea)
+
     def loadImg(self, path):
         '''
         桥接viewWidget和tag_system函数
@@ -275,7 +279,7 @@ class JFVWindow(QMainWindow):
     def slotGridDoubleClick(self, grid):
         '''
         [两类更新界面操作都有]
-        gridWidget鼠标双击事件的槽函数（目前没区分鼠标左右键）
+        gridWidget鼠标双击事件（以及grid右键菜单打开）的槽函数（目前没区分鼠标左右键）
         根据grid的类型进行三种处理
         args
             grid: GridWidget 被点击的缩略图格子
