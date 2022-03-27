@@ -347,7 +347,7 @@ class JFVWindow(QMainWindow):
         '''
         msgbox = QMessageBox()
         msgbox.setWindowTitle('版本信息')
-        msgbox.setText('V-0.1')
+        msgbox.setText('v-1.1')
         msgbox.exec_()
 
     def slotBackAction(self):
@@ -407,9 +407,13 @@ class JFVWindow(QMainWindow):
         header.setText(2, '子树总数')
         tree.setHeaderItem(header)
 
+        tag2item = {}
+
         def dfs(cur_node, deep, fa_item):
+            # 统计数量
             tag = cur_node[0]
             cur_cnt = self.tag_system.calc_tag_cnt(cur_path, tag)
+            # 构建item
             if deep == 0:
                 item = QTreeWidgetItem()
                 tree.addTopLevelItem(item)
@@ -417,12 +421,27 @@ class JFVWindow(QMainWindow):
                 item = QTreeWidgetItem(fa_item)
             item.setText(0, self.tag_system.getTagName(tag))
             item.setText(1, str(cur_cnt))
-            son_cnt = 0
+            tag2item[tag] = item
+            # dfs儿子
+            son_cnts = []
             for son_node in cur_node[1]:
-                son_cnt += dfs(son_node, deep+1, item)
+                son_cnt = dfs(son_node, deep+1, item)
+                son_cnts.append(son_cnt)
+            # 统计自己
+            sum_son_cnt = sum(son_cnts)
             if len(cur_node[1]) != 0:
-                item.setText(2, str(cur_cnt+son_cnt))
-            return cur_cnt+son_cnt
+                item.setText(2, str(cur_cnt+sum_son_cnt))
+            # 儿子上色
+            if len(cur_node[1]) != 0:
+                max_son_cnt = max(son_cnts)
+                if max_son_cnt>0 and not any([len(son_node[1])>0 for son_node in cur_node[1]]):
+                    for ix,son_node in enumerate(cur_node[1]):
+                        son_item = tag2item[son_node[0]]
+                        k1 = son_cnts[ix]/max_son_cnt
+                        k2 = -(son_cnts[ix]/max_son_cnt-1)**2 + 1
+                        k = k2
+                        son_item.setForeground(1, QColor(round(k*255),0,0))
+            return cur_cnt+sum_son_cnt
         
         dfs(self.tag_system.meta_tag_tree, 0, None)
         tree.expandAll()
