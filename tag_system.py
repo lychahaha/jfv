@@ -521,3 +521,20 @@ class TagSystem(object):
             if tag in tagSet:
                 cnt += 1
         return cnt
+
+    def transfer_dir(self, srcPath, dstPath):
+        '''
+        批量转移路径
+        args
+            srcPath:str 原始根目录路径
+            dstPath:str 目标根目录路径
+        ret
+            int 转移的目录数量
+        '''
+        paths = [path for path in self.tag_dict if path.startswith(srcPath)]
+        for path in paths:
+            tagSet = self.tag_dict.pop(path)
+            newPath = path.replace(srcPath, dstPath)
+            self.tag_dict[newPath] = tagSet
+        return len(paths)
+        

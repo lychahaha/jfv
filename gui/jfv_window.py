@@ -115,6 +115,8 @@ class JFVWindow(QMainWindow):
         self.optionsAction.triggered.connect(self.slotOptionsAction)
         self.tagCntAction = QAction('标签统计', self)
         self.tagCntAction.triggered.connect(self.slotTagCntAction)
+        self.tagTransferAction = QAction('标签迁移', self)
+        self.tagTransferAction.triggered.connect(self.slotTagTransferAction)
 
     def createMenu(self):
         '''
@@ -122,6 +124,7 @@ class JFVWindow(QMainWindow):
         '''
         self.funcMenu = self.menuBar().addMenu('功能')
         self.funcMenu.addAction(self.tagCntAction)
+        self.funcMenu.addAction(self.tagTransferAction)
         self.helpMenu = self.menuBar().addMenu('帮助')
         self.helpMenu.addAction(self.aboutAction)
         self.helpMenu.addAction(self.helpAction)
@@ -139,6 +142,8 @@ class JFVWindow(QMainWindow):
         '''
         创建主体
         '''
+        # 自身
+        self.setWindowTitle('Jpg Viewing and Filtering')
         # 状态栏
         self.statusLabel = QLabel()
         self.statusBar().addWidget(self.statusLabel)
@@ -455,6 +460,53 @@ class JFVWindow(QMainWindow):
         layout.addWidget(QLabel(f'路径:{cur_path}'))
         layout.addWidget(tree)
         msgbox.exec_()
+
+    def slotTagTransferAction(self):
+        '''
+        tagTransferAction的槽。
+        实现标签转移。
+        '''
+        # 核心部件
+        srcLineEdit = QLineEdit()
+        dstLineEdit = QLineEdit()
+        srcLineEdit.setText(r'D:\OneDrive\照片') #默认
+        dstLineEdit.setText(r'D:\照片') #默认
+        okBtn = QPushButton('确定')
+        cancelBtn = QPushButton('取消')
+        # 布局
+        msgbox = QDialog()
+        msgbox.setWindowTitle('标签迁移')
+        g_layout = QGridLayout()
+        g_layout.addWidget(QLabel('原始目录路径'), 0, 0)
+        g_layout.addWidget(srcLineEdit, 0, 1)
+        g_layout.addWidget(QLabel('目标目录路径'), 1, 0)
+        g_layout.addWidget(dstLineEdit, 1, 1)
+        hbox = QHBoxLayout()
+        hbox.addWidget(okBtn)
+        hbox.addWidget(cancelBtn)
+        layout = QVBoxLayout(msgbox)
+        layout.addLayout(g_layout)
+        layout.addLayout(hbox)
+        # 按钮的槽
+        def slotOK():
+            msgbox.accept()
+        
+        def slotCancel():
+            msgbox.reject()
+        
+        okBtn.clicked.connect(slotOK)
+        cancelBtn.clicked.connect(slotCancel)
+
+        # 展示对话框
+        ret = msgbox.exec_()
+
+        # 核心系统执行
+        if ret == QDialog.Accepted:
+            srcPath = srcLineEdit.text().strip()
+            dstPath = dstLineEdit.text().strip()
+            num = self.tag_system.transfer_dir(srcPath, dstPath)
+
+            QMessageBox.information(self, '标签迁移', f'迁移成功（{num}项）')
 
     def closeEvent(self, e):
         '''
