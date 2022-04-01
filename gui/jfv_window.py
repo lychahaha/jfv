@@ -115,6 +115,8 @@ class JFVWindow(QMainWindow):
         self.optionsAction.triggered.connect(self.slotOptionsAction)
         self.tagCntAction = QAction('标签统计', self)
         self.tagCntAction.triggered.connect(self.slotTagCntAction)
+        self.tagCurPageCntAction = QAction('当前页面标签统计', self)
+        self.tagCurPageCntAction.triggered.connect(self.slotTagCurPageCntAction)
         self.tagTransferAction = QAction('标签迁移', self)
         self.tagTransferAction.triggered.connect(self.slotTagTransferAction)
 
@@ -124,6 +126,7 @@ class JFVWindow(QMainWindow):
         '''
         self.funcMenu = self.menuBar().addMenu('功能')
         self.funcMenu.addAction(self.tagCntAction)
+        self.funcMenu.addAction(self.tagCurPageCntAction)
         self.funcMenu.addAction(self.tagTransferAction)
         self.helpMenu = self.menuBar().addMenu('帮助')
         self.helpMenu.addAction(self.aboutAction)
@@ -457,7 +460,85 @@ class JFVWindow(QMainWindow):
         msgbox = QDialog()
         msgbox.setWindowTitle('标签统计')
         layout = QVBoxLayout(msgbox)
-        layout.addWidget(QLabel(f'路径:{cur_path}'))
+        layout.addWidget(QLabel(f'路径: {cur_path}'))
+        layout.addWidget(tree)
+        msgbox.exec_()
+
+    def slotTagCurPageCntAction(self):
+        '''
+        tagCurPageCntAction的槽。(目前照搬tagCntAction修改)
+        打开当前页面标签统计消息框。
+        与标签统计的区别是，它是统计当前viewWidget的所有grid，而标签统计是统计某目录下的所有子孙图片
+        '''
+        cur_path = self.filterWidget.pathLineEdit.text().strip()
+        cur_tagstr = self.filterWidget.tagLineEdit.text().strip()
+
+        # 创建GUI树
+        tree = QTreeWidget()
+        header = QTreeWidgetItem()
+        header.setText(0, '标签')
+        header.setText(1, '数量')
+        header.setText(2, '子树总数')
+        tree.setHeaderItem(header)
+
+        tag2item = {}
+
+        def calc_tag_cnt(tag):
+            cnt = 0
+            for i in range(self.viewWidget.gridLayout.count()):
+                grid = self.viewWidget.gridLayout.itemAt(i).widget()
+                if grid.filetype != 'img':
+                    continue
+                tagSet = self.tag_system.getTag(grid.path)
+                if tag in tagSet:
+                    cnt += 1
+            return cnt
+
+        def dfs(cur_node, deep, fa_item):
+            # 统计数量
+            tag = cur_node[0]
+            cur_cnt = calc_tag_cnt(tag)
+            # 构建item
+            if deep == 0:
+                item = QTreeWidgetItem()
+                tree.addTopLevelItem(item)
+            else:
+                item = QTreeWidgetItem(fa_item)
+            item.setText(0, self.tag_system.getTagName(tag))
+            item.setText(1, str(cur_cnt))
+            tag2item[tag] = item
+            # dfs儿子
+            son_cnts = []
+            for son_node in cur_node[1]:
+                son_cnt = dfs(son_node, deep+1, item)
+                son_cnts.append(son_cnt)
+            # 统计自己
+            sum_son_cnt = sum(son_cnts)
+            if len(cur_node[1]) != 0:
+                item.setText(2, str(cur_cnt+sum_son_cnt))
+            # 儿子上色
+            if len(cur_node[1]) != 0:
+                max_son_cnt = max(son_cnts)
+                if max_son_cnt>0 and not any([len(son_node[1])>0 for son_node in cur_node[1]]):
+                    for ix,son_node in enumerate(cur_node[1]):
+                        son_item = tag2item[son_node[0]]
+                        k1 = son_cnts[ix]/max_son_cnt
+                        k2 = -(son_cnts[ix]/max_son_cnt-1)**2 + 1
+                        k = k2
+                        son_item.setForeground(1, QColor(round(k*255),0,0))
+            return cur_cnt+sum_son_cnt
+        
+        dfs(self.tag_system.meta_tag_tree, 0, None)
+        tree.expandAll()
+        tree.setMinimumSize(400,400)
+        tree.header().setSectionResizeMode(QHeaderView.ResizeToContents)
+
+        # 创建消息窗口
+        msgbox = QDialog()
+        msgbox.setWindowTitle('当前页面标签统计')
+        layout = QVBoxLayout(msgbox)
+        layout.addWidget(QLabel(f'路径: {cur_path}'))
+        layout.addWidget(QLabel(f'标签: {cur_tagstr}'))
         layout.addWidget(tree)
         msgbox.exec_()
 
