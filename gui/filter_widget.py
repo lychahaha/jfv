@@ -9,6 +9,7 @@ FilterWidget
 |-pathClearBtn 路径清除按钮
 |-tagClearBtn 标签清除按钮
 |-okBtn 确认按钮
+|-onlyCurDirCBox 是否只筛选当前目录
 '''
 
 class FilterWidget(QDockWidget):
@@ -21,6 +22,7 @@ class FilterWidget(QDockWidget):
         self.pathClearBtn = QPushButton('清除')
         self.tagClearBtn = QPushButton('清除')
         self.okBtn = QPushButton('确定')
+        self.onlyCurDirCBox = QCheckBox('只筛选当前目录')
 
         self.pathLineEdit.returnPressed.connect(self.parent().slotFilterOK) #回车键触发确认
         self.tagLineEdit.returnPressed.connect(self.parent().slotFilterOK)
@@ -37,6 +39,7 @@ class FilterWidget(QDockWidget):
         self.layout.addWidget(self.tagLineEdit, 1, 1)
         self.layout.addWidget(self.tagClearBtn, 1, 2)
         self.layout.addWidget(self.okBtn, 2, 0)
+        self.layout.addWidget(self.onlyCurDirCBox, 2, 1)
         self.setWidget(self.content)
 
         self.setTabOrder(self.pathLineEdit, self.tagLineEdit) #设置tab顺序，path编辑完tab到tag编辑

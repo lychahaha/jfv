@@ -339,30 +339,39 @@ class TagSystem(object):
                 dfs(son_node, deep+1)
         dfs(self.meta_tag_tree, 0)
 
-    def filterImage(self, pathStr, tagStr):
+    def filterImage(self, pathStr, tagStr, onlyCurDir=False):
         '''
         标签筛选算法的入口函数
         args
             pathStr:str 路径串
             tagStr:str 标签筛选串
+            onlyCurDir:bool 是否只筛选当前目录下的图片
         ret [str] 符合筛选要求的路径列表
         '''
-        paths = self._filterImageByPath(pathStr)
+        paths = self._filterImageByPath(pathStr, onlyCurDir)
         paths = self._filterImageByTagExp(paths, tagStr)
         return paths
 
-    def _filterImageByPath(self, pathStr):
+    def _filterImageByPath(self, pathStr, onlyCurDir):
         '''
         查找路径目录里的所有子孙图片文件
         args
             pathStr:str 路径串
+            onlyCurDir:bool 是否只筛选当前目录下的图片
         ret [str] 符合筛选要求的路径列表
         '''
         ret_paths = []
-        for cur_dir,dirs,files in os.walk(pathStr): #注意不单是本目录，还包括子孙目录的图片文件
-            for file in files:
+        if not onlyCurDir:
+            for cur_dir,dirs,files in os.walk(pathStr): #注意不单是本目录，还包括子孙目录的图片文件
+                for file in files:
+                    if os.path.splitext(file)[1] in self.img_extnames:
+                        ret_paths.append(os.path.join(cur_dir, file))
+        else:
+            for file in os.listdir(pathStr):
+                if not os.path.isfile(os.path.join(pathStr, file)):
+                    continue
                 if os.path.splitext(file)[1] in self.img_extnames:
-                    ret_paths.append(os.path.join(cur_dir, file))
+                        ret_paths.append(os.path.join(pathStr, file))
         return ret_paths
 
     def _filterImageByTagExp(self, paths, tagStr):
@@ -536,5 +545,7 @@ class TagSystem(object):
             tagSet = self.tag_dict.pop(path)
             newPath = path.replace(srcPath, dstPath)
             self.tag_dict[newPath] = tagSet
+        if len(paths) != 0:
+            self.is_dirty = True
         return len(paths)
         

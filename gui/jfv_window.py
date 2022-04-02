@@ -258,7 +258,8 @@ class JFVWindow(QMainWindow):
             self.filterWidget.pathLineEdit.setText(self.global_args['img_default_filedir'])
         if tagStr != "":
             # 标签筛选信息不为空，则进入筛选模式
-            select_imgs = self.tag_system.filterImage(pathStr, tagStr)
+            onlyCurDir = self.filterWidget.onlyCurDirCBox.checkState() == Qt.Checked
+            select_imgs = self.tag_system.filterImage(pathStr, tagStr, onlyCurDir=onlyCurDir)
             self.viewWidget._showImgs(select_imgs)
         else:
             # 否则，进入目录模式
@@ -588,6 +589,10 @@ class JFVWindow(QMainWindow):
             num = self.tag_system.transfer_dir(srcPath, dstPath)
 
             QMessageBox.information(self, '标签迁移', f'迁移成功（{num}项）')
+
+            if self.tag_system.is_dirty:
+                self.tagWidget.saveBtn.setEnabled(True)
+                self.tagWidget.resetBtn.setEnabled(True)
 
     def closeEvent(self, e):
         '''
